@@ -133,7 +133,7 @@ Na polecenie Dyrektora (sygnał 2) wszyscy pacjenci natychmiast opuszczają budy
 5. Sprawdź, czy pacjenci opuścili budynek.
 
 ## Link do repozytorium
-
+https://github.com/bhandziak/Przychodnia_SO
 
 ### Autor
 Bartłomiej Handziak rok 2, 
