@@ -85,13 +85,13 @@ Na polecenie Dyrektora (sygnał 2) wszyscy pacjenci natychmiast opuszczają budy
 
 1. Ustaw limit N = 30 pacjentów w budynku.
 2. Stwórz 50 pacjentów.
-3. Sprawdź, czy 30 pacjentów znajduje się w budynku i, czy 20 czeka przed wejściem.
+3. Sprawdź, czy 30 pacjentów znajduje się w budynku, i czy 20 czeka przed wejściem.
 
 ### Dzieci i opieka nad nimi
 
 1. Sprawdź, czy pacjent w wieku 12 lat będzie pod opieką dorosłej osoby.
 
-### Drugie okien w rejestracji
+### Drugie okienko w rejestracji
 
 1. Ustaw limit N = 30 pacjentów w budynku.
 2. Stwórz 20 pacjentów.
