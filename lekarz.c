@@ -1,3 +1,5 @@
+#include "common_def.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -14,7 +16,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-enum doctorType {POZ, KARDIOLOG, OKULISTA, PEDIATRIA, MED_PRAC};
 
 int main(int argc, char *argv[])
 {
@@ -28,7 +29,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    enum doctorType doctor = (enum doctorType)arg1;
+    doctorType doctor = (doctorType)arg1;
+    Patient patient;
 
     switch (doctor) {
         case POZ:
@@ -50,6 +52,33 @@ int main(int argc, char *argv[])
             printf("Nieprawidłowy typ lekarza.\n");
             return 1;
     }
+    char* fifo_name = fifo_queue_doctor[doctor];
+
+    create_fifo_queue(fifo_name);
+
+    int fifo_queue_doctor = open_read_only_fifo(fifo_name);
+
+    while(1) {
+        if (read(fifo_queue_doctor, &patient, sizeof(Patient)) <= 0) {
+            if (errno != EINTR) {
+                perror("Błąd odczytu z FIFO lub brak danych");
+                break;
+            }
+        } else {
+            utworz_nowy_semafor(&patient);
+            printf("LEKARZ (%d): Obsługuję pacjenta %d \n", doctor, patient.pid);
+
+
+            utworz_pamiec_pacjent(&patient);
+            patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+
+            sleep(5);
+
+            semafor_open(&patient);
+        }
+    }
+
+    close(fifo_queue_doctor);
 
     return 0;
 }
