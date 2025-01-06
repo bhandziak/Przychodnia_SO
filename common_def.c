@@ -17,6 +17,12 @@ char* fifo_queue_doctor[] = {
     "fifo_POZ", "fifo_HEART", "fifo_EYE", "fifo_CHILD", "fifo_WORK", "fifo_EXAM"
 };
 
+int queues_doctor_count = sizeof(fifo_queue_doctor) / sizeof(fifo_queue_doctor[0]);
+
+char* doctor_name[] = {
+    "POZ", "Kardiolog", "Okulista", "Pediatria", "Medycyna pracy"
+};
+
 // --------- SEMAFORY ------------------
 
 void utworz_nowy_semafor(Patient *patient)
@@ -109,7 +115,7 @@ void utworz_pamiec_pacjent(Patient *patient)
 	patient->memid=shmget(key, sizeof(patientState), 0600 | IPC_CREAT);
     if (patient->memid==-1) 
     {
-        perror("Problemy z utworzeniem pamieci dzielonej.\n");
+        perror("Problemy z utworzeniem pamieci dzielonej PACJENT.\n");
         exit(EXIT_FAILURE);
     }
   }
@@ -137,8 +143,37 @@ void odlacz_pamiec_pacjent(Patient *patient, patientState* state)
     }
   }
 
+// DYREKTOR
 
-  // -------------------- FIFO --------------------
+void* utworz_pamiec(key_t key, size_t size) {
+    int memid = shmget(key, size, 0600 | IPC_CREAT);
+    if (memid == -1) {
+        perror("Problemy z utworzeniem SZCZEGOLNEJ pamieci dzielonej.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    void* addr = shmat(memid, NULL, 0);
+    if (addr == (void*)(-1)) {
+        perror("Problemy z adresem SZCZEGOLNEJ pamieci dzielonej\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return addr;
+}
+
+void odlacz_pamiec(void* addr, key_t key, size_t size) {
+    int memid = shmget(key, size, 0600);
+    int disconnect1=shmctl(memid,IPC_RMID,0);
+
+    int disconnect2=shmdt(addr);
+    if (disconnect1==-1 || disconnect2==-1)
+    {
+        perror("Problemy z odlaczeniem SZCZEGOLNEJ pamieci dzielonej.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// -------------------- FIFO --------------------
 
 void create_fifo_queue(char* name){
     if (mkfifo(name, 0600) == -1) {

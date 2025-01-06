@@ -53,31 +53,26 @@ int main(int argc, char *argv[])
             return 1;
     }
     char* fifo_name = fifo_queue_doctor[doctor];
+    char *doctorStr = doctor_name[doctor];
 
     create_fifo_queue(fifo_name);
 
     int fifo_queue_doctor = open_read_only_fifo(fifo_name);
 
-    while(1) {
-        if (read(fifo_queue_doctor, &patient, sizeof(Patient)) <= 0) {
-            if (errno != EINTR) {
-                perror("Błąd odczytu z FIFO lub brak danych");
-                break;
-            }
-        } else {
-            utworz_nowy_semafor(&patient);
-            printf("LEKARZ (%d): Obsługuję pacjenta %d \n", doctor, patient.pid);
+    while(read(fifo_queue_doctor, &patient, sizeof(Patient)) > 0) {
+        utworz_nowy_semafor(&patient);
+        printf("LEKARZ (%s): Obsługuję pacjenta %d \n", doctorStr, patient.pid);
 
 
-            utworz_pamiec_pacjent(&patient);
-            patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+        utworz_pamiec_pacjent(&patient);
+        patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
-            sleep(5);
+        sleep(5);
 
-            semafor_open(&patient);
-        }
+        semafor_open(&patient);
+
     }
-
+    printf("LEKARZ (%s): koniec\n", doctorStr);
     close(fifo_queue_doctor);
 
     return 0;

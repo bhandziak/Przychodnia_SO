@@ -38,6 +38,13 @@ int main(int argc, char *argv[])
     // write only FIFO
     int fifo_oknienko = open_write_only_fifo(FIFO_REJESTRACJA);
 
+    int fifo_queues_doctor[queues_doctor_count];
+
+    for(int i = 0; i < queues_doctor_count-1; i++){
+        char* fifo_doctor_name = fifo_queue_doctor[i];
+        printf("Otwieram FIFO %s ... \n",fifo_doctor_name);
+        fifo_queues_doctor[i]= open_write_only_fifo(fifo_doctor_name);
+    }
 
     // createPatients
     for(int i=0; i < numOfPatients; i++){
@@ -47,6 +54,8 @@ int main(int argc, char *argv[])
             patient.pid = getpid();
             patient.doctor = choosePatientType();
 
+            char* doctorStr = doctor_name[patient.doctor];
+
             //tworzenie semaforow dla kazdego z pacjentow
             utworz_nowy_semafor(&patient);
 
@@ -55,7 +64,7 @@ int main(int argc, char *argv[])
             *patient_state = OUTSIDE;
 
             *patient_state = REGISTER;
-            printf("PACJENT: %d (%d) stoję w kolejce do rejestracji...\n", patient.pid, patient.doctor);
+            printf("PACJENT: %d (%s) stoję w kolejce do rejestracji...\n", patient.pid, doctorStr);
 
             write_fifo_patient(&patient, fifo_oknienko);
 
@@ -63,25 +72,24 @@ int main(int argc, char *argv[])
             semafor_close(&patient);
 
             if(*patient_state == REGISTER_SUCCESS){
-                printf("PACJENT: %d (%d) zostałem zajestrowany.\n", patient.pid, patient.doctor);
-                char* fifo_doctor_name = fifo_queue_doctor[patient.doctor];
-                int fifo_queue_doctor = open_write_only_fifo(fifo_doctor_name);
+                printf("PACJENT: %d (%s) zostałem zajestrowany.\n", patient.pid, doctorStr);
+
 
                 *patient_state = patient.doctor + 4;
-                printf("PACJENT: %d (%d) stoję w kolejce do lekarza.\n", patient.pid, patient.doctor);
-                write_fifo_patient(&patient, fifo_queue_doctor);
+                printf("PACJENT: %d (%s) stoję w kolejce do lekarza.\n", patient.pid,  doctorStr);
+                write_fifo_patient(&patient, fifo_queues_doctor[patient.doctor]);
                 // czekaj na lekarza
                 semafor_close(&patient);
 
-                close(fifo_queue_doctor);
+                close(fifo_queues_doctor[patient.doctor]);
 
 
             }else if(*patient_state == REGISTER_FAIL){
-                printf("PACJENT: %d (%d) odrzucono moją rejestrację.\n", patient.pid, patient.doctor);
+                printf("PACJENT: %d (%s) odrzucono moją rejestrację.\n", patient.pid, doctorStr);
             }
 
             *patient_state = GO_HOME;
-            printf("PACJENT: %d (%d) koniec - idę do domu.\n", patient.pid, patient.doctor);
+            printf("PACJENT: %d (%s) koniec - idę do domu.\n", patient.pid, doctorStr);
 
 
             odlacz_pamiec_pacjent(&patient, patient_state);
@@ -90,15 +98,26 @@ int main(int argc, char *argv[])
             
             exit(0); 
         }
-        sleep(1);
+        if(i > 2){
+            sleep(30);
+        }else{
+            sleep(1);
+        }
+        
     }
-    //printf("PACJENT: Wszystkie procesy pacjentów zostały utworzone.\n");
+    printf("PACJENT: koniec generowania pajentów.\n");
 
     for (int i = 0; i < numOfPatients; i++) {
         wait(NULL); 
     }
     
     close(fifo_oknienko);
+    unlink(FIFO_REJESTRACJA);
+    for(int i = 0; i < queues_doctor_count-1; i++){
+        char* fifo_doctor_name = fifo_queue_doctor[i];
+        close(fifo_queues_doctor[i]);
+        unlink(fifo_doctor_name);
+    }
     return 0;
 }
 

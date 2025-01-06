@@ -27,10 +27,11 @@ int main(int argc, char *argv[])
 
     // read only FIFO
     int fifo_oknienko = open_read_only_fifo(FIFO_REJESTRACJA);
+    char *doctorStr = doctor_name[patient.doctor];
 
     // read 
     while(read(fifo_oknienko, &patient, sizeof(patient)) > 0){
-        printf("PRZYCHODNIA: Rejestruję ... %d (%d)\n", patient.pid, patient.doctor);
+        printf("PRZYCHODNIA: Rejestruję ... %d (%s)\n", patient.pid, doctorStr);
         utworz_nowy_semafor(&patient);
 
 
