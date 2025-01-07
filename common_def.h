@@ -7,7 +7,11 @@
 #define FIFO_REJESTRACJA2 "fifo_rej2"
 #define MAX_GEN_PATIENTS 1024
 
+#define DOCTOR_COUNT 6
 #define KEY_GLOBAL_CONST 10
+#define KEY_GLOBAL_VARS 11
+
+#define KEY_GLOBAL_SEMAPHORE 120
 
 extern char* fifo_queue_doctor[];
 extern int queues_doctor_count;
@@ -27,6 +31,7 @@ typedef enum {
 typedef struct {
     pid_t pid;
     doctorType doctor;
+    char doctorStr[50];
     int semid;
     int memid;
 } Patient;
@@ -34,38 +39,31 @@ typedef struct {
 typedef struct {
     int N; // limit osób w przychodni
     int K; // moment otwarcia 2 okienka
-    int X1; // limit dla lekarzy
-    int X2;
-    int X3;
-    int X4;
-    int X5;
+    int X[5]; // limit lekarzy
     int Tp; // czas otwarcia
     int Tk; // czas zamknięcia
+    int idsemVars;
 } ContsVars;
 
 typedef struct {
-    int people_count; // liczba osób w przychodni
+    int people_free_count; // ilość wolnych miejsc w przychodni
     int register_count; // liczba osób przy okienkach rejestracji
-    int X1_c[2]; // liczba obsłużonych pacjentów dla lekarzy
-    int X2_c;
-    int X3_c;
-    int X4_c;
-    int X5_c;
+    int X_free[6]; // liczba wolnych miejsc do konkretnego lekarzas
     int time; // aktualny czas
-    int X1_open[2]; // czy otwarty lekarz
-    int X2_open;
-    int X3_open;
-    int X4_open;
-    int X5_open;
 } PublicVars;
+
+
+int sumIntArray(int tab[], int lenght);
+void goHomePatient(Patient *patient, patientState* patient_state);
 
 
 // SEMAFORY
 
-void utworz_nowy_semafor(Patient *patient);
-void semafor_close(Patient *patient);
-void semafor_open(Patient *patient);
-void usun_semafor(Patient *patient);
+void utworz_nowy_semafor_pacjent(Patient *patient);
+int utworz_nowy_semafor(key_t key);
+void semafor_close(int semid);
+void semafor_open(int semid);
+void usun_semafor(int semid);
 
 // PAMIEC DZIELONA
 
@@ -73,8 +71,9 @@ void utworz_pamiec_pacjent(Patient *patient);
 patientState* przydziel_adres_pamieci_pacjent(Patient *patient);
 void odlacz_pamiec_pacjent(Patient *patient, patientState* state);
 
-void* utworz_pamiec(key_t key, size_t size);
-void odlacz_pamiec(void* addr, key_t key, size_t size);
+void* utworz_pamiec(key_t key, size_t size, int* memid_p);
+void odlacz_pamiec(void* addr);
+void usun_pamiec(int memid);
 
 // KOLEJKA FIFO
 

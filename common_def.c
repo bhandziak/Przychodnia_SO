@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+
 char* fifo_queue_doctor[] = {
     "fifo_POZ", "fifo_HEART", "fifo_EYE", "fifo_CHILD", "fifo_WORK", "fifo_EXAM"
 };
@@ -23,9 +24,26 @@ char* doctor_name[] = {
     "POZ", "Kardiolog", "Okulista", "Pediatria", "Medycyna pracy"
 };
 
+int sumIntArray(int tab[], int lenght){
+  int sum = 0;
+  for(int i = 0; i < lenght; i++ ){
+    sum += tab[i];
+  }
+  return sum;
+}
+
+void goHomePatient(Patient *patient, patientState* patient_state){
+  *patient_state = GO_HOME;
+  printf("PACJENT: %d (%s) koniec - idę do domu.\n", patient->pid, patient->doctorStr);
+
+  odlacz_pamiec_pacjent(patient, patient_state);
+  usun_semafor(patient->semid);
+  exit(0);
+}
+
 // --------- SEMAFORY ------------------
 
-void utworz_nowy_semafor(Patient *patient)
+void utworz_nowy_semafor_pacjent(Patient *patient)
   {
     key_t key = ftok("/tmp", patient->pid);
     if (key == -1) {
@@ -41,18 +59,30 @@ void utworz_nowy_semafor(Patient *patient)
       }
   }
 
-void semafor_close(Patient *patient)
+int utworz_nowy_semafor(key_t key){
+  int semid = semget(key,1,0600|IPC_CREAT); 
+  if (semid==-1)
+  {
+    perror("Problemy z utworzeniem nowego semafora.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  semctl(semid, 0, SETVAL, 1);
+  return semid;
+}
+
+void semafor_close(int semid)
   {
     int zmien_sem;
     struct sembuf bufor_sem;
     bufor_sem.sem_num=0;
     bufor_sem.sem_op=-1;
     bufor_sem.sem_flg=0;
-    zmien_sem=semop(patient->semid,&bufor_sem,1); //1 -l.semafor
+    zmien_sem=semop(semid,&bufor_sem,1); //1 -l.semafor
     if (zmien_sem==-1)
       {
         if(errno == EINTR){ //ubsluga bledu zatrzymania
-        semafor_close(patient);
+        semafor_close(semid);
         }
         else
         {
@@ -66,14 +96,14 @@ void semafor_close(Patient *patient)
       }
   }
 
-void semafor_open(Patient *patient)
+void semafor_open(int semid)
   {
     int zmien_sem;
     struct sembuf bufor_sem;
     bufor_sem.sem_num=0;
     bufor_sem.sem_op=1;
     bufor_sem.sem_flg=SEM_UNDO; //SEM_UNDO semafor pamieta ile operacji wykonal, gdy je wykone cofnie je (uwaga na przepelnienie semafora)
-    zmien_sem=semop(patient->semid,&bufor_sem,1);
+    zmien_sem=semop(semid,&bufor_sem,1);
     if (zmien_sem==-1) 
       {
         perror("Nie moglem otworzyc semafora.\n");
@@ -85,10 +115,10 @@ void semafor_open(Patient *patient)
       }
   }
 
-void usun_semafor(Patient *patient)  
+void usun_semafor(int semid)  
   {
     int sem;
-    sem=semctl(patient->semid,0,IPC_RMID);
+    sem=semctl(semid,0,IPC_RMID);
     if (sem==-1)
       {
         perror("Nie mozna usunac semafora.\n");
@@ -145,12 +175,13 @@ void odlacz_pamiec_pacjent(Patient *patient, patientState* state)
 
 // DYREKTOR
 
-void* utworz_pamiec(key_t key, size_t size) {
+void* utworz_pamiec(key_t key, size_t size, int* memid_p) {
     int memid = shmget(key, size, 0600 | IPC_CREAT);
     if (memid == -1) {
         perror("Problemy z utworzeniem SZCZEGOLNEJ pamieci dzielonej.\n");
         exit(EXIT_FAILURE);
     }
+    *memid_p = memid;
 
     void* addr = shmat(memid, NULL, 0);
     if (addr == (void*)(-1)) {
@@ -161,14 +192,17 @@ void* utworz_pamiec(key_t key, size_t size) {
     return addr;
 }
 
-void odlacz_pamiec(void* addr, key_t key, size_t size) {
-    int memid = shmget(key, size, 0600);
-    int disconnect1=shmctl(memid,IPC_RMID,0);
-
-    int disconnect2=shmdt(addr);
-    if (disconnect1==-1 || disconnect2==-1)
+void odlacz_pamiec(void* addr) {
+    if (shmdt(addr) == -1)
     {
         perror("Problemy z odlaczeniem SZCZEGOLNEJ pamieci dzielonej.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void usun_pamiec(int memid) {
+    if (shmctl(memid, IPC_RMID, 0) == -1) {
+        perror("Problemy z usunięciem SZCZEGOLNEJ pamieci dzielonej.\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -176,6 +210,10 @@ void odlacz_pamiec(void* addr, key_t key, size_t size) {
 // -------------------- FIFO --------------------
 
 void create_fifo_queue(char* name){
+    if (access(name, F_OK) == 0) {
+        return;
+    }
+
     if (mkfifo(name, 0600) == -1) {
         perror("FIFO: bład tworzenia");
     }

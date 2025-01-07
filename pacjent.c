@@ -46,6 +46,15 @@ int main(int argc, char *argv[])
         fifo_queues_doctor[i]= open_write_only_fifo(fifo_doctor_name);
     }
 
+    // global const and vars
+
+    int globalConst_memid;
+    int globalVars_memid;
+    ContsVars* globalConst_adres = (ContsVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ContsVars),&globalConst_memid);
+    PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
+
+    int global_semid = globalConst_adres->idsemVars;
+
     // createPatients
     for(int i=0; i < numOfPatients; i++){
         if(fork() == 0){
@@ -55,51 +64,73 @@ int main(int argc, char *argv[])
             patient.doctor = choosePatientType();
 
             char* doctorStr = doctor_name[patient.doctor];
+            strcpy(patient.doctorStr, doctorStr);
 
             //tworzenie semaforow dla kazdego z pacjentow
-            utworz_nowy_semafor(&patient);
+            utworz_nowy_semafor_pacjent(&patient);
 
             utworz_pamiec_pacjent(&patient);
             patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
             *patient_state = OUTSIDE;
 
+            // czy lekarze mają wolne terminy?
+            if(sumIntArray(globalVars_adres->X_free, DOCTOR_COUNT) <= 0){
+                // nie
+                goHomePatient(&patient,patient_state);
+            }
+            
+            // tak maja wolne terminy
+
+            // czy osiągnieto limit osób w przychodni?
+            // POTENCJALNE PROBLEMY Z SYNCHRONIZACJA
+            //semafor_close(global_semid);
+            if(globalVars_adres->people_free_count <= 0){
+                // tak
+                // TYMCZASOWO GO HOME
+                // Powinna być kolejka fifo_outside
+                printf("Osiągnięto LIMIT N (pojemności przychodni)! ");
+                goHomePatient(&patient,patient_state);
+            }
+            // nie
+            globalVars_adres->people_free_count--;
+            //semafor_open(global_semid);
+
             *patient_state = REGISTER;
-            printf("PACJENT: %d (%s) stoję w kolejce do rejestracji...\n", patient.pid, doctorStr);
+            printf("PACJENT: %d (%s) stoję w kolejce do rejestracji...\n", patient.pid, patient.doctorStr);
 
             write_fifo_patient(&patient, fifo_oknienko);
 
             // czekaj na odp od przychodni
-            semafor_close(&patient);
+            semafor_close(patient.semid);
 
             if(*patient_state == REGISTER_SUCCESS){
-                printf("PACJENT: %d (%s) zostałem zajestrowany.\n", patient.pid, doctorStr);
+                printf("PACJENT: %d (%s) zostałem zajestrowany.\n", patient.pid, patient.doctorStr);
 
 
                 *patient_state = patient.doctor + 4;
-                printf("PACJENT: %d (%s) stoję w kolejce do lekarza.\n", patient.pid,  doctorStr);
+                printf("PACJENT: %d (%s) stoję w kolejce do lekarza.\n", patient.pid,  patient.doctorStr);
                 write_fifo_patient(&patient, fifo_queues_doctor[patient.doctor]);
                 // czekaj na lekarza
-                semafor_close(&patient);
+                semafor_close(patient.semid);
 
                 close(fifo_queues_doctor[patient.doctor]);
 
 
             }else if(*patient_state == REGISTER_FAIL){
-                printf("PACJENT: %d (%s) odrzucono moją rejestrację.\n", patient.pid, doctorStr);
+                printf("PACJENT: %d (%s) odrzucono moją rejestrację.\n", patient.pid, patient.doctorStr);
             }
 
-            *patient_state = GO_HOME;
-            printf("PACJENT: %d (%s) koniec - idę do domu.\n", patient.pid, doctorStr);
+            //semafor_close(global_semid);
+            globalVars_adres->people_free_count++;
+            //semafor_open(global_semid);
 
-
-            odlacz_pamiec_pacjent(&patient, patient_state);
-            usun_semafor(&patient);
+            goHomePatient(&patient, patient_state);
             close(fifo_oknienko);
             
             exit(0); 
         }
         if(i > 2){
-            sleep(30);
+            sleep(3);
         }else{
             sleep(1);
         }
@@ -118,6 +149,14 @@ int main(int argc, char *argv[])
         close(fifo_queues_doctor[i]);
         unlink(fifo_doctor_name);
     }
+
+    odlacz_pamiec(globalConst_adres);
+    odlacz_pamiec(globalVars_adres);
+
+    usun_pamiec(globalConst_memid);
+    usun_pamiec(globalVars_memid);
+
+    usun_semafor(global_semid);
     return 0;
 }
 

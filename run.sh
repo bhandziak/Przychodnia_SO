@@ -2,7 +2,10 @@
 
 ./dyrektor &
 
+sleep 2
+
 ./lekarz 0 &
+./lekarz 5 &
 ./lekarz 1 &
 ./lekarz 2 &
 ./lekarz 3 &
@@ -10,6 +13,6 @@
 
 sleep 3
 
-./pacjent 6 &
+./pacjent 15 &
 
 ./przychodnia
