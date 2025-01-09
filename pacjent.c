@@ -83,17 +83,19 @@ int main(int argc, char *argv[])
 
             // czy osiągnieto limit osób w przychodni?
             // POTENCJALNE PROBLEMY Z SYNCHRONIZACJA
-            //semafor_close(global_semid);
+            semafor_close(global_semid);
+            printf("Odczytuje LIMIT: %d ", globalVars_adres->people_free_count);
             if(globalVars_adres->people_free_count <= 0){
                 // tak
                 // TYMCZASOWO GO HOME
                 // Powinna być kolejka fifo_outside
                 printf("Osiągnięto LIMIT N (pojemności przychodni)! ");
+                semafor_open(global_semid);
                 goHomePatient(&patient,patient_state);
             }
             // nie
             globalVars_adres->people_free_count--;
-            //semafor_open(global_semid);
+            semafor_open(global_semid);
 
             *patient_state = REGISTER;
             printf("PACJENT: %d (%s) stoję w kolejce do rejestracji...\n", patient.pid, patient.doctorStr);
@@ -120,14 +122,17 @@ int main(int argc, char *argv[])
                 printf("PACJENT: %d (%s) odrzucono moją rejestrację.\n", patient.pid, patient.doctorStr);
             }
 
-            //semafor_close(global_semid);
-            globalVars_adres->people_free_count++;
-            //semafor_open(global_semid);
+            semafor_close(global_semid);
 
-            goHomePatient(&patient, patient_state);
+            globalVars_adres->people_free_count++;
+
+            semafor_open(global_semid);
+
+
             close(fifo_oknienko);
+            goHomePatient(&patient, patient_state);
             
-            exit(0); 
+            //exit(0); 
         }
         if(i > 2){
             sleep(3);

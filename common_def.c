@@ -77,7 +77,7 @@ void semafor_close(int semid)
     struct sembuf bufor_sem;
     bufor_sem.sem_num=0;
     bufor_sem.sem_op=-1;
-    bufor_sem.sem_flg=0;
+    bufor_sem.sem_flg=SEM_UNDO;
     zmien_sem=semop(semid,&bufor_sem,1); //1 -l.semafor
     if (zmien_sem==-1)
       {

@@ -74,14 +74,14 @@ int main(int argc, char *argv[])
 
     while(read(fifo_queue_doctor, &patient, sizeof(Patient)) > 0) {
         //if(globalVars_adres->X_free[doctorID+doctorOffset] > 0){
-            utworz_nowy_semafor_pacjent(&patient);
-            printf("LEKARZ (%s)(wolnych miejsc - %d): Obsługuję pacjenta %d...\n", doctorStr,globalVars_adres->X_free[doctorID] ,patient.pid );
+        utworz_nowy_semafor_pacjent(&patient);
+        printf("LEKARZ (%s)(wolnych miejsc - %d): Obsługuję pacjenta %d...\n", doctorStr,globalVars_adres->X_free[doctorID] ,patient.pid );
 
 
-            utworz_pamiec_pacjent(&patient);
-            patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+        utworz_pamiec_pacjent(&patient);
+        patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
-            sleep(5);
+        sleep(5);
         //}
         semafor_open(patient.semid);
 
