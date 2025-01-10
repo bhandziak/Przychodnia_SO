@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     Patient patient;
     
     while (access(FIFO_REJESTRACJA, F_OK) == -1) {
-        printf("PACJENT: Czekam na utworzenie kolejki FIFO...\n");
+        printf("PACJENT: Czekam na utworzenie kolejki FIFO_REJESTRACJA...\n");
         sleep(3);
     }
 
@@ -74,30 +74,37 @@ int main(int argc, char *argv[])
             *patient_state = OUTSIDE;
 
             // czy lekarze mają wolne terminy?
+            semafor_close(global_semid);
             if(sumIntArray(globalVars_adres->X_free, DOCTOR_COUNT) <= 0){
                 // nie
+                printf("PACJENT: %d (%s) Wszyscy lekarze nie mają wolnych terminów. \n", patient.pid, patient.doctorStr);
                 goHomePatient(&patient,patient_state);
             }
-            
+            semafor_open(global_semid);
             // tak maja wolne terminy
 
             // czy osiągnieto limit osób w przychodni?
-            // POTENCJALNE PROBLEMY Z SYNCHRONIZACJA
-            semafor_close(global_semid);
-            printf("Odczytuje LIMIT: %d ", globalVars_adres->people_free_count);
-            if(globalVars_adres->people_free_count <= 0){
-                // tak
-                // TYMCZASOWO GO HOME
-                // Powinna być kolejka fifo_outside
-                printf("Osiągnięto LIMIT N (pojemności przychodni)! ");
+            while(1){
+                semafor_close(global_semid);
+
+                // nie (jest miejsce) wyjdź z pętli
+                if(globalVars_adres->people_free_count > 0){
+                    globalVars_adres->people_free_count--;
+                    semafor_open(global_semid);
+                    break;
+                }
+                printf("PACJENT: %d (%s) Osiągnięto LIMIT N (pojemności przychodni)! czekam ...\n", patient.pid, patient.doctorStr);
                 semafor_open(global_semid);
-                goHomePatient(&patient,patient_state);
+                sleep(1);
             }
-            // nie
-            globalVars_adres->people_free_count--;
-            semafor_open(global_semid);
 
             *patient_state = REGISTER;
+
+            // kolejka do rejestracji
+
+            semafor_close(global_semid);
+            globalVars_adres->register_count++;
+            semafor_open(global_semid);
             printf("PACJENT: %d (%s) stoję w kolejce do rejestracji...\n", patient.pid, patient.doctorStr);
 
             write_fifo_patient(&patient, fifo_oknienko);
@@ -119,7 +126,7 @@ int main(int argc, char *argv[])
 
 
             }else if(*patient_state == REGISTER_FAIL){
-                printf("PACJENT: %d (%s) odrzucono moją rejestrację.\n", patient.pid, patient.doctorStr);
+                printf("PACJENT: %d (%s) odrzucono moją rejestrację (brak terminów).\n", patient.pid, patient.doctorStr);
             }
 
             semafor_close(global_semid);
@@ -152,7 +159,6 @@ int main(int argc, char *argv[])
     for(int i = 0; i < queues_doctor_count-1; i++){
         char* fifo_doctor_name = fifo_queue_doctor[i];
         close(fifo_queues_doctor[i]);
-        unlink(fifo_doctor_name);
     }
 
     odlacz_pamiec(globalConst_adres);

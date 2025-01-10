@@ -2,6 +2,8 @@
     "files.associations": {
         "wait.h": "c",
         "common_def.h": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "types.h": "c",
+        "fcntl.h": "c"
     }
 }

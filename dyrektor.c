@@ -30,8 +30,7 @@ int main(int argc, char *argv[])
 
     memcpy(globalConst.X, Xvals, sizeof(Xvals));
 
-    globalConst.N = 10;
-    globalConst.K = 6;
+    globalConst.N = 15;
     globalConst.Tp = 0;
     globalConst.Tk = 3600;
 

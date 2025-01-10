@@ -91,6 +91,6 @@ int main(int argc, char *argv[])
     odlacz_pamiec(globalConst_adres);
     odlacz_pamiec(globalVars_adres);
     close(fifo_queue_doctor);
-
+    unlink(fifo_name);
     return 0;
 }

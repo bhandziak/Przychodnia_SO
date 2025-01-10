@@ -4,7 +4,6 @@
 #include <sys/types.h>
 
 #define FIFO_REJESTRACJA "fifo_rej1"
-#define FIFO_REJESTRACJA2 "fifo_rej2"
 #define MAX_GEN_PATIENTS 1024
 
 #define DOCTOR_COUNT 6
@@ -38,7 +37,6 @@ typedef struct {
 
 typedef struct {
     int N; // limit osób w przychodni
-    int K; // moment otwarcia 2 okienka
     int X[5]; // limit lekarzy
     int Tp; // czas otwarcia
     int Tk; // czas zamknięcia

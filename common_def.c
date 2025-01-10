@@ -36,8 +36,8 @@ void goHomePatient(Patient *patient, patientState* patient_state){
   *patient_state = GO_HOME;
   printf("PACJENT: %d (%s) koniec - idę do domu.\n", patient->pid, patient->doctorStr);
 
-  odlacz_pamiec_pacjent(patient, patient_state);
   usun_semafor(patient->semid);
+  odlacz_pamiec_pacjent(patient, patient_state);
   exit(0);
 }
 
