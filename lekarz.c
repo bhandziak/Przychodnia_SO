@@ -15,7 +15,9 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
+void handlePatient(Patient *patient, char* doctorStr,int doctorID ,PublicVars* globalVars_adres );
 
 int main(int argc, char *argv[])
 {
@@ -59,6 +61,7 @@ int main(int argc, char *argv[])
             return 1;
     }
     char* fifo_name = fifo_queue_doctor[doctorID];
+    char* fifo_name_vip = fifo_queue_VIP_doctor[doctorID];
     char *doctorStr = doctor_name[doctorID];
 
     // global vars and const
@@ -67,30 +70,57 @@ int main(int argc, char *argv[])
     ContsVars* globalConst_adres = (ContsVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ContsVars),&globalConst_memid);
     PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
 
+    // normal queue
 
     create_fifo_queue(fifo_name);
 
     int fifo_queue_doctor = open_read_only_fifo(fifo_name);
 
-    while(read(fifo_queue_doctor, &patient, sizeof(Patient)) > 0) {
-        //if(globalVars_adres->X_free[doctorID+doctorOffset] > 0){
-        utworz_nowy_semafor_pacjent(&patient);
-        printf("LEKARZ (%s)(wolnych miejsc - %d): Obsługuję pacjenta %d...\n", doctorStr,globalVars_adres->X_free[doctorID] ,patient.pid );
+    // VIP queue
 
+    create_fifo_queue(fifo_name_vip);
 
-        utworz_pamiec_pacjent(&patient);
-        patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+    int fifo_queue_doctor_vip = open_read_only_fifo(fifo_name_vip);
 
-        sleep(5);
-        //}
-        semafor_open(patient.semid);
+    struct stat fifo_doctor_stat; // stan fifo do lekarza (zwykła kolejka)
 
+    while(1){
+        // sprawdzenie stanu fifo doctor (czy plik istnieje)
+        if (fstat(fifo_queue_doctor, &fifo_doctor_stat) == -1) {
+            perror("Problem z odczytaniem statystyk fifo lekarz.\n");
+            continue;
+        }
+        if(fifo_doctor_stat.st_nlink == 0){
+            printf("LEKARZ (%s): nie ma podłączonych procesów do fifo - zamykam proces \n", doctorStr);
+            break;
+        }
+
+        // najpierw vip, potem inni
+        if(read(fifo_queue_doctor_vip, &patient, sizeof(Patient)) > 0){
+            handlePatient(&patient, doctorStr, doctorID, globalVars_adres);
+        }else if(read(fifo_queue_doctor, &patient, sizeof(Patient)) > 0){
+            handlePatient(&patient, doctorStr, doctorID, globalVars_adres);
+        }else{
+            sleep(1);
+        }
     }
+
     printf("LEKARZ (%s): koniec\n", doctorStr);
 
     odlacz_pamiec(globalConst_adres);
     odlacz_pamiec(globalVars_adres);
     close(fifo_queue_doctor);
-    unlink(fifo_name);
+    //unlink(fifo_name);
+    close(fifo_queue_doctor_vip);
+    //unlink(fifo_name_vip);
     return 0;
+}
+
+void handlePatient(Patient *patient, char* doctorStr,int doctorID ,PublicVars* globalVars_adres ){
+    printf("LEKARZ (%s)(wolnych miejsc - %d): Obsługuję pacjenta %d...\n", doctorStr,globalVars_adres->X_free[doctorID] ,patient->pid );
+
+    patientState* patient_state = przydziel_adres_pamieci_pacjent(patient);
+
+    sleep(10);
+    semafor_open(patient->semid);
 }

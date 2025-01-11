@@ -15,16 +15,17 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
 
 int main(int argc, char *argv[])
 {
     ContsVars globalConst;
-    int X1 = 3;
-    int X2 = 1;
-    int X3 = 1;
-    int X4 = 1;
-    int X5 = 1;
+    int X1 = 5;
+    int X2 = 3;
+    int X3 = 3;
+    int X4 = 3;
+    int X5 = 3;
 
     int Xvals[] = {X1, X2, X3, X4, X5};
 
@@ -38,6 +39,7 @@ int main(int argc, char *argv[])
   
     int globalConst_memid;
     globalConst.idsemVars = utworz_nowy_semafor(KEY_GLOBAL_SEMAPHORE);
+    printf("SEMID GLOBANY: %d\n", globalConst.idsemVars);
 
     ContsVars* globalConst_adres = (ContsVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ContsVars),&globalConst_memid);
     *globalConst_adres = globalConst;

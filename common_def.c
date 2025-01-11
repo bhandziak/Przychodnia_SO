@@ -12,10 +12,15 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
 
 char* fifo_queue_doctor[] = {
     "fifo_POZ", "fifo_HEART", "fifo_EYE", "fifo_CHILD", "fifo_WORK", "fifo_EXAM"
+};
+
+char* fifo_queue_VIP_doctor[] = {
+    "fifo_POZ_VIP", "fifo_HEART_VIP", "fifo_EYE_VIP", "fifo_CHILD_VIP", "fifo_WORK_VIP", "fifo_EXAM_VIP"
 };
 
 int queues_doctor_count = sizeof(fifo_queue_doctor) / sizeof(fifo_queue_doctor[0]);
@@ -86,6 +91,7 @@ void semafor_close(int semid)
         }
         else
         {
+        printf("semmid %d",semid);
         perror("Nie moglem zamknac semafora.\n");
         exit(EXIT_FAILURE);
         }
@@ -106,6 +112,7 @@ void semafor_open(int semid)
     zmien_sem=semop(semid,&bufor_sem,1);
     if (zmien_sem==-1) 
       {
+        printf("semmid %d\n",semid);
         perror("Nie moglem otworzyc semafora.\n");
         exit(EXIT_FAILURE);
       }
@@ -121,6 +128,7 @@ void usun_semafor(int semid)
     sem=semctl(semid,0,IPC_RMID);
     if (sem==-1)
       {
+        printf("semmid %d\n",semid);
         perror("Nie mozna usunac semafora.\n");
         exit(EXIT_FAILURE);
       }
@@ -221,7 +229,7 @@ void create_fifo_queue(char* name){
 
 int open_read_only_fifo(char* name){
     // read only FIFO
-    int fifo_queue = open(name, O_RDONLY);
+    int fifo_queue = open(name, O_RDONLY | O_NONBLOCK);
     if (fifo_queue == -1) {
         perror("FIFO: Nie można otworzyć FIFO\n");
         exit(1);

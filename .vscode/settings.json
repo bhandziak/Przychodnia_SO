@@ -4,6 +4,7 @@
         "common_def.h": "c",
         "stat.h": "c",
         "types.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "shm.h": "c"
     }
 }

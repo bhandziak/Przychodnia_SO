@@ -2,6 +2,7 @@
 #define COMMON_DEF_H
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 #define FIFO_REJESTRACJA "fifo_rej1"
 #define MAX_GEN_PATIENTS 1024
@@ -13,6 +14,7 @@
 #define KEY_GLOBAL_SEMAPHORE 120
 
 extern char* fifo_queue_doctor[];
+extern char* fifo_queue_VIP_doctor[];
 extern int queues_doctor_count;
 extern char* doctor_name[];
 
@@ -33,6 +35,7 @@ typedef struct {
     char doctorStr[50];
     int semid;
     int memid;
+    bool vip;
 } Patient;
 
 typedef struct {

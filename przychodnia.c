@@ -53,17 +53,18 @@ int main(int argc, char *argv[])
     struct stat fifo_okienko_stat; // stan fifo okienko
     // read 
     while(1){
+        // sprawdzenie stanu fifo okienko (czy plik istnieje)
+        if (fstat(fifo_oknienko, &fifo_okienko_stat) == -1) {
+            perror("Problem z odczytaniem statystyk fifo okienko.\n");
+            continue;
+        }
+        if(fifo_okienko_stat.st_nlink == 0){
+            printf("OKIENKO nr. %d: nie ma podłączonych procesów do fifo - zamykam proces \n", NUMER_OKIENKA);
+            break;
+        }
         // sprawdzenia dla 2 okienka
         if(NUMER_OKIENKA == 2){
             
-            if (fstat(fifo_oknienko, &fifo_okienko_stat) == -1) {
-                perror("Problem z odczytaniem statystyk fifo okienko.\n");
-                continue;
-            }
-            if(fifo_okienko_stat.st_nlink == 0){
-                printf("OKIENKO nr. 2: nie podłączonych procesów do fifo - zamykam proces \n");
-                break;
-            }
             semafor_close(global_semid);
 
             // logika okienka 2 jest dobra ???
@@ -96,10 +97,7 @@ int main(int argc, char *argv[])
             semafor_open(global_semid);
             
             printf("OKIENKO nr %d: Rejestruję ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
-            utworz_nowy_semafor_pacjent(&patient);
 
-
-            utworz_pamiec_pacjent(&patient);
             patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
             // czy dany lekarz ma wolne terminy?
@@ -127,10 +125,10 @@ int main(int argc, char *argv[])
             }
             semafor_open(global_semid);
 
-            sleep(10);
+            sleep(2);
             semafor_open(patient.semid);
         }else{
-          break;
+          sleep(1);
         }
     }
 
