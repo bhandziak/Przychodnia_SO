@@ -1,7 +1,5 @@
 #!/bin/bash
 
-./dyrektor &
-
 sleep 2
 
 ./lekarz 0 &

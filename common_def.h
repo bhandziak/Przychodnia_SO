@@ -36,6 +36,7 @@ typedef struct {
     int semid;
     int memid;
     bool vip;
+    int count;
 } Patient;
 
 typedef struct {
@@ -44,19 +45,40 @@ typedef struct {
     int Tp; // czas otwarcia
     int Tk; // czas zamknięcia
     int idsemVars;
-} ContsVars;
+} ConstVars;
 
 typedef struct {
     int people_free_count; // ilość wolnych miejsc w przychodni
     int register_count; // liczba osób przy okienkach rejestracji
     int X_free[6]; // liczba wolnych miejsc do konkretnego lekarzas
     int time; // aktualny czas
+
+    int registerPID[MAX_GEN_PATIENTS];
+    int registerPIDsize;
+
+    int doctorPID[MAX_GEN_PATIENTS];
+    int doctorPIDsize;
+
+    int outsidePatientPID[MAX_GEN_PATIENTS];
+    int outsidePatientPIDsize;
+
+    int registerZonePatientPID[MAX_GEN_PATIENTS];
+    int registerZonePatientPIDsize;
+
+    int doctorZonePatientPID[MAX_GEN_PATIENTS];
+    int doctorZonePatientPIDsize;
 } PublicVars;
 
 
 int sumIntArray(int tab[], int lenght);
 void goHomePatient(Patient *patient, patientState* patient_state);
+void convertTimeToStr(int time, char* timeStr);
 
+// DYNAMIC TABLE
+
+void appendToArrayInt(int* array,int* size ,int element);
+void removeFromArrayInt(int* array,int* size,  int value);
+void printDynamicArrayInt(int* array,int size );
 
 // SEMAFORY
 

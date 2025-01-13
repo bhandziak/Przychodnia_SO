@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 
+#include <string.h>
 
 char* fifo_queue_doctor[] = {
     "fifo_POZ", "fifo_HEART", "fifo_EYE", "fifo_CHILD", "fifo_WORK", "fifo_EXAM"
@@ -44,6 +45,63 @@ void goHomePatient(Patient *patient, patientState* patient_state){
   usun_semafor(patient->semid);
   odlacz_pamiec_pacjent(patient, patient_state);
   exit(0);
+}
+
+void convertTimeToStr(int time, char* timeStr){
+  int minutes = time % 60;
+  int hours = (time / 60 + 6) % 24;
+
+  snprintf(timeStr, 6, "%02d:%02d", hours, minutes);
+}
+
+// Dynamic Array
+
+
+void appendToArrayInt(int* array,int* size ,int element){
+  if(*size < MAX_GEN_PATIENTS){
+    array[*size] = element;
+    (*size)++;
+  }
+  else{
+    printf("Array error: przekroczono pojemność tablicy\n");
+  }
+
+}
+
+void removeFromArrayInt(int* array,int* size,  int value) {
+    if (*size == 0) {
+        return;
+    }
+
+    int index = -1;
+
+    for (int i = 0; i < *size; i++) {
+        if (array[i] == value) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        return;
+    }
+
+    for (int i = index; i < *size - 1; i++) {
+        array[i] = array[i + 1];
+    }
+
+    (*size)--;
+}
+
+void printDynamicArrayInt(int* array,int size ){
+  for(int i=0; i < size; i++){
+    printf("%d", array[i]);
+
+    if(i != size - 1){
+      printf(",");
+    }
+  }
+  printf("\n");
 }
 
 // --------- SEMAFORY ------------------
@@ -89,6 +147,11 @@ void semafor_close(int semid)
         if(errno == EINTR){ //ubsluga bledu zatrzymania
         semafor_close(semid);
         }
+        else if (errno == EINVAL) {
+            printf("Niepoprawny semafor (semid = %d)\n", semid);
+        } else if (errno == EOVERFLOW) {
+            printf("Przekroczenie zakresu wartości semafora (semid = %d)\n", semid);
+        }
         else
         {
         printf("semmid %d",semid);
@@ -112,6 +175,11 @@ void semafor_open(int semid)
     zmien_sem=semop(semid,&bufor_sem,1);
     if (zmien_sem==-1) 
       {
+        if (errno == EINVAL) {
+            printf("Niepoprawny semafor (semid = %d)\n", semid);
+        } else if (errno == EOVERFLOW) {
+            printf("Przekroczenie zakresu wartości semafora (semid = %d)\n", semid);
+        }
         printf("semmid %d\n",semid);
         perror("Nie moglem otworzyc semafora.\n");
         exit(EXIT_FAILURE);

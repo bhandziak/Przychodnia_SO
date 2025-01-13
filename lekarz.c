@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
     // global vars and const
     int globalConst_memid;
     int globalVars_memid;
-    ContsVars* globalConst_adres = (ContsVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ContsVars),&globalConst_memid);
+    ConstVars* globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
     PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
 
     // normal queue
@@ -121,6 +121,6 @@ void handlePatient(Patient *patient, char* doctorStr,int doctorID ,PublicVars* g
 
     patientState* patient_state = przydziel_adres_pamieci_pacjent(patient);
 
-    sleep(10);
+    sleep(15);
     semafor_open(patient->semid);
 }

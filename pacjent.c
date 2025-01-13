@@ -56,19 +56,21 @@ int main(int argc, char *argv[])
 
     int globalConst_memid;
     int globalVars_memid;
-    ContsVars* globalConst_adres = (ContsVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ContsVars),&globalConst_memid);
+    
+    ConstVars* globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
     PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
 
     int global_semid = globalConst_adres->idsemVars;
 
     // createPatients
     for(int i=0; i < numOfPatients; i++){
-        if(fork() == 0){
+        if(fork() == 0){ // DODAĆ sprawdzenie max procesów w systemie
             srand(getpid());
             // send PID
             patient.pid = getpid();
             patient.doctor = choosePatientType();
             patient.vip = selectPatientVIP();
+            patient.count = (patient.doctor == PEDIATRIA) ? 2 : 1;
             char *vipStatusStr = (patient.vip) ? "VIP" : "";
 
             char* doctorStr = doctor_name[patient.doctor];
@@ -79,13 +81,30 @@ int main(int argc, char *argv[])
 
             utworz_pamiec_pacjent(&patient);
             patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+
+            // pacjent stoi przed przychodnią
+            // dodanie pacjenta do strefy zewnętrznej
+            semafor_close(global_semid);
+
+            printf("PACJENT %s: %d (%s) Właśnie przyszedłem do przychodni. \n",vipStatusStr ,patient.pid, patient.doctorStr);
+
+            appendToArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
+
+            semafor_open(global_semid);
+
             *patient_state = OUTSIDE;
+
+            sleep(2);
 
             // czy lekarze mają wolne terminy?
             semafor_close(global_semid);
             if(sumIntArray(globalVars_adres->X_free, DOCTOR_COUNT) <= 0){
                 // nie
                 printf("PACJENT %s: %d (%s) Wszyscy lekarze nie mają wolnych terminów. \n",vipStatusStr ,patient.pid, patient.doctorStr);
+
+                // usunięcie pacjenta ze strefy zewnętrznej
+                removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
+                semafor_open(global_semid);
                 goHomePatient(&patient,patient_state);
             }
             semafor_open(global_semid);
@@ -96,8 +115,8 @@ int main(int argc, char *argv[])
                 semafor_close(global_semid);
 
                 // nie (jest miejsce) wyjdź z pętli
-                if(globalVars_adres->people_free_count > 0){
-                    globalVars_adres->people_free_count--;
+                if(globalVars_adres->people_free_count - patient.count >= 0){
+                    globalVars_adres->people_free_count -= patient.count;
                     semafor_open(global_semid);
                     break;
                 }
@@ -109,9 +128,14 @@ int main(int argc, char *argv[])
             *patient_state = REGISTER;
 
             // kolejka do rejestracji
+            // przeniesienie pacjenta do strefy rejestracji
 
             semafor_close(global_semid);
-            globalVars_adres->register_count++;
+
+            removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
+            appendToArrayInt(globalVars_adres->registerZonePatientPID,&globalVars_adres->registerZonePatientPIDsize ,patient.pid);
+            globalVars_adres->register_count+= patient.count;
+
             semafor_open(global_semid);
             printf("PACJENT semid(%d) %s: %d (%s) stoję w kolejce do rejestracji...\n",patient.semid,vipStatusStr ,patient.pid, patient.doctorStr);
 
@@ -123,6 +147,13 @@ int main(int argc, char *argv[])
             if(*patient_state == REGISTER_SUCCESS){
                 printf("PACJENT %s: %d (%s) zostałem zajestrowany.\n",vipStatusStr ,patient.pid, patient.doctorStr);
 
+                // przeniesienie pacjenta do strefy gabinetów lekarskich
+                semafor_close(global_semid);
+
+                removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize ,patient.pid);
+                appendToArrayInt(globalVars_adres->doctorZonePatientPID, &globalVars_adres->doctorZonePatientPIDsize,patient.pid);
+
+                semafor_open(global_semid);
 
                 *patient_state = patient.doctor + 4;
                 printf("PACJENT %s: %d (%s) stoję w kolejce do lekarza.\n",vipStatusStr ,patient.pid,  patient.doctorStr);
@@ -140,15 +171,27 @@ int main(int argc, char *argv[])
                     close(fifo_queues_doctor[patient.doctor]);
                 }
                 
+                // usunięcie pacjenta ze strefy gabinetów lekarskich
+                semafor_close(global_semid);
 
+                removeFromArrayInt(globalVars_adres->doctorZonePatientPID,&globalVars_adres->doctorZonePatientPIDsize ,patient.pid);
+
+                semafor_open(global_semid);
 
             }else if(*patient_state == REGISTER_FAIL){
+                // usunięcie pacjenta ze strefy rejestracji
+                semafor_close(global_semid);
+
+                removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize,patient.pid);
+
+                semafor_open(global_semid);
+
                 printf("PACJENT %s: %d (%s) odrzucono moją rejestrację (brak terminów).\n", vipStatusStr,patient.pid, patient.doctorStr);
             }
 
             semafor_close(global_semid);
 
-            globalVars_adres->people_free_count++;
+            globalVars_adres->people_free_count+=patient.count;
 
             semafor_open(global_semid);
 

@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     // global vars and const
     int globalConst_memid;
     int globalVars_memid;
-    ContsVars* globalConst_adres = (ContsVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ContsVars),&globalConst_memid);
+    ConstVars* globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
     PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
 
     int global_semid = globalConst_adres->idsemVars;
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
             
             semafor_close(global_semid);
 
-            // logika okienka 2 jest dobra ???
+            // logika okienka 2 
             if(globalVars_adres->register_count >= globalConst_adres->N / 2 && !okienko2_isopen ){
                 // open
                 printf("OKIENKO nr %d OTWIERA SIE: jest %d pacjentów w kolejce (N/2 = %d)\n", NUMER_OKIENKA, globalVars_adres->register_count, globalConst_adres->N / 2);
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
         if(read(fifo_oknienko, &patient, sizeof(patient)) > 0){
 
             semafor_close(global_semid);
-            globalVars_adres->register_count--;
+            globalVars_adres->register_count -= patient.count;
             semafor_open(global_semid);
             
             printf("OKIENKO nr %d: Rejestruję ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
             }
             semafor_open(global_semid);
 
-            sleep(2);
+            sleep(5);
             semafor_open(patient.semid);
         }else{
           sleep(1);
