@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 
 doctorType choosePatientType() {
     int r = rand() % 100;
-    if (r < 60) {
+    if (r < 10) {
         return POZ;
     } else if (r < 70) {
         return KARDIOLOG;

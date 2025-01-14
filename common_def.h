@@ -53,11 +53,9 @@ typedef struct {
     int X_free[6]; // liczba wolnych miejsc do konkretnego lekarzas
     int time; // aktualny czas
 
-    int registerPID[MAX_GEN_PATIENTS];
-    int registerPIDsize;
+    int registerPID[2];
 
-    int doctorPID[MAX_GEN_PATIENTS];
-    int doctorPIDsize;
+    int doctorPID[6];
 
     int outsidePatientPID[MAX_GEN_PATIENTS];
     int outsidePatientPIDsize;

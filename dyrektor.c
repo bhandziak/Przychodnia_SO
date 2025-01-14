@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #include <pthread.h>
 
@@ -114,16 +115,16 @@ void *send_signal(void *args){
 
     while (clockIsActive)
     {
-        int action = 0;
-        // displayMenu();
-        // if (scanf("%d", &action) != 1) {
-        //     printf("Złe dane wejściowe\n");
-        //     continue;
-        // }else if(action < 0 || action >6){
-        //     printf("Złe dane wejściowe\n");
-        //     continue;
-        // }
-        // getchar();
+        int action;
+        displayMenu();
+        if (scanf("%d", &action) != 1) {
+            printf("Złe dane wejściowe\n");
+            continue;
+        }else if(action < 0 || action >6){
+            printf("Złe dane wejściowe\n");
+            continue;
+        }
+        getchar();
 
         semafor_close(global_semid);
 
@@ -137,21 +138,35 @@ void *send_signal(void *args){
             printDynamicArrayInt(globalVars_adres->outsidePatientPID, globalVars_adres->outsidePatientPIDsize);
 
             printf("Rejestracja: ");
-            printDynamicArrayInt(globalVars_adres->registerPID, globalVars_adres->registerPIDsize);
+            printDynamicArrayInt(globalVars_adres->registerPID, 2);
 
             printf("Lekarze: ");
-            printDynamicArrayInt(globalVars_adres->doctorPID, globalVars_adres->doctorPIDsize);
+            printDynamicArrayInt(globalVars_adres->doctorPID, 6);
 
             printf("Strefa rejestracji: ");
             printDynamicArrayInt(globalVars_adres->registerZonePatientPID, globalVars_adres->registerZonePatientPIDsize);
 
             printf("Strefa gabinetów: ");
             printDynamicArrayInt(globalVars_adres->doctorZonePatientPID, globalVars_adres->doctorZonePatientPIDsize);
+        }else{
+            int idDoctor = action-1;
+            int pidDoctor = globalVars_adres->doctorPID[idDoctor];
+            char *doctorStr = doctor_name[idDoctor];
+            if(pidDoctor == -1){
+                printf("%s pid(%d) już zakończył pracę\n", doctorStr, pidDoctor);
+                continue;
+            }
+            printf("Wysyłam sygnał zakończenia pracy do %s pid(%d)...\n", doctorStr, pidDoctor);
+
+            if (kill(pidDoctor, SIGUSR1) == -1) {
+                perror("Kill Error: Błąd wysłania sygnału \n");
+                return NULL;
+            }
         }
 
         printf("\n");
-        //getchar();
-        usleep(100000);
+        getchar();
+        //usleep(100000);
         system("clear");
         
     }
@@ -164,11 +179,11 @@ void displayMenu(){
     printf("0. Wyświetl PID'y i lokalizacje \n");
 
     printf("1. Zakończ pracę lekarza POZ 1 \n");
-    printf("2. Zakończ pracę lekarza POZ 2 \n");
-    printf("3. Zakończ pracę lekarza Kardiolog \n");
-    printf("4. Zakończ pracę lekarza Okulistę \n");
-    printf("5. Zakończ pracę lekarza Pediatria \n");
-    printf("6. Zakończ pracę lekarza Medycyna pracy \n");
+    printf("2. Zakończ pracę lekarza Kardiolog \n");
+    printf("3. Zakończ pracę lekarza Okulistę \n");
+    printf("4. Zakończ pracę lekarza Pediatria \n");
+    printf("5. Zakończ pracę lekarza Medycyna pracy \n");
+    printf("6. Zakończ pracę lekarza POZ 2 \n");
 
     printf("CTRL + C: Sygnał o ewakuacji \n");
 }

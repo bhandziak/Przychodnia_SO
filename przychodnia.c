@@ -50,6 +50,13 @@ int main(int argc, char *argv[])
 
     int global_semid = globalConst_adres->idsemVars;
 
+    // przypisanie PID do pamięci dzielonej
+    semafor_close(global_semid);
+
+    globalVars_adres->registerPID[NUMER_OKIENKA-1] = getpid();
+
+    semafor_open(global_semid);
+
     struct stat fifo_okienko_stat; // stan fifo okienko
     // read 
     while(1){
@@ -97,7 +104,8 @@ int main(int argc, char *argv[])
             semafor_open(global_semid);
             
             printf("OKIENKO nr %d: Rejestruję ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
-
+            sleep(5);
+            
             patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
             // czy dany lekarz ma wolne terminy?
@@ -125,14 +133,17 @@ int main(int argc, char *argv[])
             }
             semafor_open(global_semid);
 
-            sleep(5);
+            
             semafor_open(patient.semid);
         }else{
           sleep(1);
         }
     }
 
-    
+
+    globalVars_adres->registerPID[NUMER_OKIENKA-1] = -1;
+
+
     printf("OKIENKO nr. %d: koniec\n",NUMER_OKIENKA );
     odlacz_pamiec(globalConst_adres);
     odlacz_pamiec(globalVars_adres);
