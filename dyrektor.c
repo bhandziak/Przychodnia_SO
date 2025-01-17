@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 {
     ConstVars globalConst;
     int X1 = 15;
-    int X2 = 10;
+    int X2 = 8;
     int X3 = 8;
     int X4 = 8;
     int X5 = 8;

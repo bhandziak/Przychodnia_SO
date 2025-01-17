@@ -11,7 +11,7 @@ sleep 2
 
 sleep 3
 
-./pacjent 40 &
+./pacjent 30 &
 
 ./przychodnia 0 &
 sleep 3

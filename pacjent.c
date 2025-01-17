@@ -177,15 +177,36 @@ int main(int argc, char *argv[])
                     // czekaj na lekarza
                     semafor_close(patient.semid);
 
-                    close(fifo_queues_doctor_vip[patient.doctor]);
+                    //close(fifo_queues_doctor_vip[patient.doctor]);
                 }else{
                     write_fifo_patient(&patient, fifo_queues_doctor[patient.doctor]);
                     // czekaj na lekarza
                     semafor_close(patient.semid);
 
-                    close(fifo_queues_doctor[patient.doctor]);
+                    //close(fifo_queues_doctor[patient.doctor]);
                 }
                 
+                // dodatkowa rejestracja do specjalisty
+                if(*patient_state > 20){
+                    patient.doctor = *patient_state - 20;
+
+                    doctorStr = doctor_name[patient.doctor];
+                    strcpy(patient.doctorStr, doctorStr);
+
+                    printf("PACJENT %s: %d (%s) stoję w kolejce do lekarza.\n",vipStatusStr ,patient.pid,  patient.doctorStr);
+
+
+                    if(patient.vip){
+                        write_fifo_patient(&patient, fifo_queues_doctor_vip[patient.doctor]);
+                        // czekaj na lekarza
+                        semafor_close(patient.semid);
+                    }else{
+                        write_fifo_patient(&patient, fifo_queues_doctor[patient.doctor]);
+                        // czekaj na lekarza
+                        semafor_close(patient.semid);
+                    }
+                }
+
                 // usunięcie pacjenta ze strefy gabinetów lekarskich
                 semafor_close(global_semid);
 
