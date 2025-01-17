@@ -9,6 +9,7 @@
 #include <sys/sem.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <time.h>
 #include <string.h>
@@ -17,9 +18,19 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 
+patientState* patient_state;
+PublicVars* globalVars_adres;
+Patient patient;
+
+int global_semid;
+
+int fifo_oknienko;
+int fifo_queues_doctor[6];
+int fifo_queues_doctor_vip[6];
 
 doctorType choosePatientType();
 bool selectPatientVIP();
+void evacuate(int sig);
 
 int main(int argc, char *argv[])
 {
@@ -30,12 +41,15 @@ int main(int argc, char *argv[])
 
     int numOfPatients = atoi(argv[1]);
 
-    Patient patient;
     
     while (access(FIFO_REJESTRACJA, F_OK) == -1) {
         printf("PACJENT: Czekam na utworzenie kolejki FIFO_REJESTRACJA...\n");
         sleep(3);
     }
+
+    // obsługa sygnału 2
+    
+    signal(SIGUSR2, evacuate);
 
     // write only FIFO
     int fifo_oknienko = open_write_only_fifo(FIFO_REJESTRACJA);
@@ -58,9 +72,10 @@ int main(int argc, char *argv[])
     int globalVars_memid;
     
     ConstVars* globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
-    PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
+    globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
 
-    int global_semid = globalConst_adres->idsemVars;
+    global_semid = globalConst_adres->idsemVars;
+    int raport_semid = globalConst_adres->idsemRaport;
 
     // createPatients
     for(int i=0; i < numOfPatients; i++){
@@ -80,7 +95,7 @@ int main(int argc, char *argv[])
             utworz_nowy_semafor_pacjent(&patient);
 
             utworz_pamiec_pacjent(&patient);
-            patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+            patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
             // pacjent stoi przed przychodnią
             // dodanie pacjenta do strefy zewnętrznej
@@ -132,8 +147,8 @@ int main(int argc, char *argv[])
 
             semafor_close(global_semid);
 
-            removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
             appendToArrayInt(globalVars_adres->registerZonePatientPID,&globalVars_adres->registerZonePatientPIDsize ,patient.pid);
+            removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
             globalVars_adres->register_count+= patient.count;
 
             semafor_open(global_semid);
@@ -148,14 +163,14 @@ int main(int argc, char *argv[])
                 printf("PACJENT %s: %d (%s) zostałem zajestrowany.\n",vipStatusStr ,patient.pid, patient.doctorStr);
 
                 // przeniesienie pacjenta do strefy gabinetów lekarskich
+                *patient_state = patient.doctor + 4;
                 semafor_close(global_semid);
 
-                removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize ,patient.pid);
                 appendToArrayInt(globalVars_adres->doctorZonePatientPID, &globalVars_adres->doctorZonePatientPIDsize,patient.pid);
+                removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize ,patient.pid);
 
                 semafor_open(global_semid);
 
-                *patient_state = patient.doctor + 4;
                 printf("PACJENT %s: %d (%s) stoję w kolejce do lekarza.\n",vipStatusStr ,patient.pid,  patient.doctorStr);
                 if(patient.vip){
                     write_fifo_patient(&patient, fifo_queues_doctor_vip[patient.doctor]);
@@ -232,12 +247,13 @@ int main(int argc, char *argv[])
     usun_pamiec(globalVars_memid);
 
     usun_semafor(global_semid);
+    usun_semafor(raport_semid);
     return 0;
 }
 
 doctorType choosePatientType() {
     int r = rand() % 100;
-    if (r < 10) {
+    if (r < 60) {
         return POZ;
     } else if (r < 70) {
         return KARDIOLOG;
@@ -255,4 +271,47 @@ bool selectPatientVIP(){
         return true;
     }
     return false;
+}
+
+void evacuate(int sig){
+    // usunięcie pacjenta z pamięci dzielonej
+    if(*patient_state == REGISTER || *patient_state == REGISTER_SUCCESS){
+        semafor_close(global_semid);
+
+        globalVars_adres->register_count -= patient.count;
+        if(globalVars_adres->register_count < 0) globalVars_adres->register_count = 0;
+
+        removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize ,patient.pid);
+
+        semafor_open(global_semid);
+    }else if(*patient_state != OUTSIDE && *patient_state != GO_HOME){
+        semafor_close(global_semid);
+
+        removeFromArrayInt(globalVars_adres->doctorZonePatientPID,&globalVars_adres->doctorZonePatientPIDsize ,patient.pid);
+
+        semafor_open(global_semid);
+        
+        // zamknięcie fifo
+        if(patient.vip){
+            close(fifo_queues_doctor_vip[patient.doctor]);
+        }else{
+            close(fifo_queues_doctor[patient.doctor]);
+        }
+    }
+
+    close(fifo_oknienko);
+    
+    // zmiana stanu
+    *patient_state = GO_HOME;
+    printf("PACJENT: %d (%s) ewakuuję się!\n",patient.pid, patient.doctorStr);
+
+    // zwolnienie miejsca
+    semafor_close(global_semid);
+
+    globalVars_adres->people_free_count+=patient.count;
+
+    semafor_open(global_semid);
+
+    // go home
+    goHomePatient(&patient, patient_state);
 }

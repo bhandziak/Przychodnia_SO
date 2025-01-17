@@ -26,6 +26,7 @@ bool clockIsActive = true;
 void *count_time(void *args);
 void *send_signal(void *args);
 void displayMenu();
+void handleSignal2(int sig);
 
 int main(int argc, char *argv[])
 {
@@ -44,10 +45,22 @@ int main(int argc, char *argv[])
     globalConst.Tp = 0;
     globalConst.Tk = 480;
 
+    // obsługa CTRL + C
+
+    signal(SIGINT, handleSignal2);
+
+    // tworzenie pliku dla lekarzy (raport.txt)
+
+    FILE* file_raport;
+    file_raport = fopen("raport.txt", "w");
+
+    fclose(file_raport);
+
     // globalConst_adres
   
     int globalConst_memid;
     globalConst.idsemVars = utworz_nowy_semafor(KEY_GLOBAL_SEMAPHORE);
+    globalConst.idsemRaport = utworz_nowy_semafor(KEY_RAPORT_TXT);
     printf("SEMID GLOBANY: %d\n", globalConst.idsemVars);
 
     globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
@@ -151,7 +164,8 @@ void *send_signal(void *args){
         }else{
             int idDoctor = action-1;
             int pidDoctor = globalVars_adres->doctorPID[idDoctor];
-            char *doctorStr = doctor_name[idDoctor];
+            int idDoctorStr = action == 6 ? 0 : idDoctor; 
+            char *doctorStr = doctor_name[idDoctorStr];
             if(pidDoctor == -1){
                 printf("%s pid(%d) już zakończył pracę\n", doctorStr, pidDoctor);
                 continue;
@@ -172,6 +186,39 @@ void *send_signal(void *args){
     }
     
     return NULL;
+}
+
+void handleSignal2(int sig){
+    printf("\n Wywołuję sygnał o ewakuacji... \n");
+
+    // sygnał dla rejestracji
+    for(int i = 0; i < 2; i++){
+        if(globalVars_adres->registerPID[i] > 0){
+            kill(globalVars_adres->registerPID[i], SIGUSR2);
+        }
+    }
+    // sygnał dla lekarzy
+    for(int i = 0; i < 6; i++){
+        if(globalVars_adres->doctorPID[i] > 0){
+            kill(globalVars_adres->doctorPID[i], SIGUSR2);
+        }
+    }
+    // sygnał dla pacjentów w rejestracji
+    for(int i = 0; i < globalVars_adres->registerZonePatientPIDsize; i++){
+        if(globalVars_adres->registerZonePatientPID[i] > 0){
+            kill(globalVars_adres->registerZonePatientPID[i], SIGUSR2);
+        }
+    }
+    // sygnał dla pacjentów w strefie gabinetów
+    for(int i = 0; i < globalVars_adres->registerZonePatientPIDsize; i++){
+        if(globalVars_adres->doctorZonePatientPID[i] > 0){
+            kill(globalVars_adres->doctorZonePatientPID[i], SIGUSR2);
+        }
+    }
+
+    sleep(3);
+    system("clear");
+    displayMenu();
 }
 
 void displayMenu(){

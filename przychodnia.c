@@ -15,9 +15,14 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #include <stdbool.h>
 
+void evacuatePatients(int sig);
+
+int fifo_oknienko;
+bool evacuateFlag = false;
 
 int main(int argc, char *argv[])
 {
@@ -35,12 +40,15 @@ int main(int argc, char *argv[])
     bool okienko2_isopen = false;
 
     Patient patient;
+
+    // obsługa sygnału 2
+    signal(SIGUSR2, evacuatePatients);
     
     // create FIFO
     create_fifo_queue(FIFO_REJESTRACJA);
 
     // read only FIFO
-    int fifo_oknienko = open_read_only_fifo(FIFO_REJESTRACJA);
+    fifo_oknienko = open_read_only_fifo(FIFO_REJESTRACJA);
 
     // global vars and const
     int globalConst_memid;
@@ -102,9 +110,11 @@ int main(int argc, char *argv[])
             semafor_close(global_semid);
             globalVars_adres->register_count -= patient.count;
             semafor_open(global_semid);
-            
+
             printf("OKIENKO nr %d: Rejestruję ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
+            //evacuateFlag = false;
             sleep(5);
+            //interruptibleSleep(5, &evacuateFlag);
             
             patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
@@ -132,9 +142,11 @@ int main(int argc, char *argv[])
               }
             }
             semafor_open(global_semid);
-
             
-            semafor_open(patient.semid);
+            //if(!evacuateFlag){
+                semafor_open(patient.semid);
+            //}
+            //evacuateFlag = false;
         }else{
           sleep(1);
         }
@@ -151,3 +163,9 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+void evacuatePatients(int sig){
+  Patient patient;
+  evacuateFlag = true;
+  while(read(fifo_oknienko, &patient, sizeof(patient)) > 0){
+  }
+}

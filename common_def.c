@@ -9,6 +9,7 @@
 #include <sys/shm.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 
 #include <sys/stat.h>
 #include <sys/wait.h>

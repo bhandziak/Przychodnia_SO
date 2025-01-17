@@ -12,6 +12,7 @@
 #define KEY_GLOBAL_VARS 11
 
 #define KEY_GLOBAL_SEMAPHORE 120
+#define KEY_RAPORT_TXT 150
 
 extern char* fifo_queue_doctor[];
 extern char* fifo_queue_VIP_doctor[];
@@ -44,7 +45,8 @@ typedef struct {
     int X[5]; // limit lekarzy
     int Tp; // czas otwarcia
     int Tk; // czas zamknięcia
-    int idsemVars;
+    int idsemVars; // semafor dla pamięci dzielonej PublicVars
+    int idsemRaport; // semafor dla pliku raport.txt
 } ConstVars;
 
 typedef struct {

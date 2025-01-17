@@ -19,7 +19,11 @@
 #include <signal.h>
 
 void handlePatient(Patient *patient );
+void clearPatient(Patient *patient);
+void evacuatePatients(int sig);
 void endOfWork(int sig);
+
+FILE* file_raport;
 
 int doctorOffset;
 doctorType doctorID;
@@ -27,12 +31,14 @@ int globalVars_memid;
 PublicVars* globalVars_adres;
 ConstVars* globalConst_adres;
 int global_semid;
+int raport_semid;
 
 int fifo_queue_doctor_id;
 int fifo_queue_doctor_id_vip;
 char *doctorStr;
 
 volatile sig_atomic_t endOfWorkFlag = 0;
+bool evacuateFlag = false;
 
 int main(int argc, char *argv[])
 {
@@ -52,8 +58,12 @@ int main(int argc, char *argv[])
         doctorOffset = 5;
     }
 
-    // obsługa sygnału 1
+    // obsługa sygnału 1 i 2
     signal(SIGUSR1, endOfWork);
+    signal(SIGUSR2, evacuatePatients);
+
+    // plik raport.txt
+    file_raport = fopen("raport.txt", "a");
 
     doctorID = (doctorType)arg1;
     Patient patient;
@@ -100,6 +110,7 @@ int main(int argc, char *argv[])
     fifo_queue_doctor_id_vip = open_read_only_fifo(fifo_name_vip);
 
     global_semid = globalConst_adres->idsemVars;
+    raport_semid = globalConst_adres->idsemRaport;
     // przypisanie PID do pamięci dzielonej
     semafor_close(global_semid);
 
@@ -145,6 +156,7 @@ int main(int argc, char *argv[])
     //unlink(fifo_name);
     close(fifo_queue_doctor_id_vip);
     //unlink(fifo_name_vip);
+    fclose(file_raport);
     return 0;
 }
 
@@ -153,8 +165,13 @@ void handlePatient(Patient *patient){
 
     patientState* patient_state = przydziel_adres_pamieci_pacjent(patient);
 
+    //evacuateFlag = false;
     sleep(15);
-    semafor_open(patient->semid);
+    //interruptibleSleep(15, &evacuateFlag);
+    //if(!evacuateFlag){
+        semafor_open(patient->semid);
+    //}
+    //evacuateFlag = false;
 }
 
 void endOfWork(int sig){
@@ -164,64 +181,66 @@ void endOfWork(int sig){
 
     endOfWorkFlag = 1;
 
-    if(doctorID == POZ){
-        semafor_close(global_semid);
-        globalVars_adres->X_free[doctorID+doctorOffset] = 0;
-        globalVars_adres->doctorPID[doctorID+doctorOffset] = -1;
-        semafor_open(global_semid);
+    semafor_close(global_semid);
+    globalVars_adres->X_free[doctorID+doctorOffset] = 0;
+    globalVars_adres->doctorPID[doctorID+doctorOffset] = -1;
+    semafor_open(global_semid);
 
+    if(doctorID == POZ){
         // drugi lekarz też skończył pracę
         if(globalVars_adres->doctorPID[0] < 0 && globalVars_adres->doctorPID[5] < 0 ){
 
             while (read(fifo_queue_doctor_id_vip, &patient, sizeof(Patient)) > 0)
             {
-                printf("LEKARZ: %d skierowanie do %s, wystawił (%d)\n", patient.pid, doctorStr, getpid());
-                semafor_open(patient.semid);
+                clearPatient(&patient);
             }
 
             while (read(fifo_queue_doctor_id, &patient, sizeof(Patient)) > 0)
             {
-                printf("LEKARZ: %d skierowanie do %s, wystawił (%d)\n", patient.pid, doctorStr, getpid());
-                semafor_open(patient.semid);
+                clearPatient(&patient);
             }
             
         }
 
-        printf("LEKARZ (%s): koniec\n", doctorStr);
-
-        odlacz_pamiec(globalConst_adres);
-        odlacz_pamiec(globalVars_adres);
-
-        close(fifo_queue_doctor_id);
-        close(fifo_queue_doctor_id_vip);
-
     }else{
-        semafor_close(global_semid);
-        globalVars_adres->X_free[doctorID] = 0;
-        globalVars_adres->doctorPID[doctorID] = -1;
-        semafor_open(global_semid);
 
         while (read(fifo_queue_doctor_id_vip, &patient, sizeof(Patient)) > 0)
         {
-            printf("LEKARZ: %d skierowanie do %s, wystawił (%d)\n", patient.pid, doctorStr, getpid());
-            semafor_open(patient.semid);
+            clearPatient(&patient);
         }
 
         while (read(fifo_queue_doctor_id, &patient, sizeof(Patient)) > 0)
         {
-            printf("LEKARZ: %d skierowanie do %s, wystawił (%d)\n", patient.pid, doctorStr, getpid());
-            semafor_open(patient.semid);
+            clearPatient(&patient);
         }
                 
+    }
+    printf("LEKARZ (%s): koniec\n", doctorStr);
 
-        printf("LEKARZ (%s): koniec\n", doctorStr);
+    odlacz_pamiec(globalConst_adres);
+    odlacz_pamiec(globalVars_adres);
 
-        odlacz_pamiec(globalConst_adres);
-        odlacz_pamiec(globalVars_adres);
+    close(fifo_queue_doctor_id);
+    close(fifo_queue_doctor_id_vip);
 
-        close(fifo_queue_doctor_id);
-        close(fifo_queue_doctor_id_vip);
+    fclose(file_raport);
+}
 
-        //exit(0);
+void clearPatient(Patient *patient){
+    semafor_close(raport_semid);
+    fprintf(file_raport,"LEKARZ: %d skierowanie do %s, wystawił (%d)\n", patient->pid, doctorStr, getpid());
+    semafor_open(raport_semid);
+    semafor_open(patient->semid);
+}
+
+void evacuatePatients(int sig){
+    Patient patient;
+    evacuateFlag = true;
+    while (read(fifo_queue_doctor_id_vip, &patient, sizeof(Patient)) > 0)
+    {
+    }
+
+    while (read(fifo_queue_doctor_id, &patient, sizeof(Patient)) > 0)
+    {
     }
 }
