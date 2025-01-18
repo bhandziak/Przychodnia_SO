@@ -41,6 +41,8 @@ int main(int argc, char *argv[])
 
     int numOfPatients = atoi(argv[1]);
 
+    int randGenTime; // co ile pojawiają się nowi pacjenci
+
     
     while (access(FIFO_REJESTRACJA, F_OK) == -1) {
         printf("PACJENT: Czekam na utworzenie kolejki FIFO_REJESTRACJA...\n");
@@ -110,6 +112,20 @@ int main(int argc, char *argv[])
             *patient_state = OUTSIDE;
 
             sleep(2);
+
+            // czy przychodnia jest otwarta?
+            semafor_close(global_semid);
+
+            if(globalVars_adres->time >= globalConst_adres->Tk){
+                // nie
+                printf("PACJENT %s: %d (%s) Przychodnia jest zamknięta. \n",vipStatusStr ,patient.pid, patient.doctorStr);
+                // usunięcie pacjenta ze strefy zewnętrznej
+                removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
+                semafor_open(global_semid);
+                goHomePatient(&patient,patient_state);
+            }
+
+            semafor_open(global_semid);
 
             // czy lekarze mają wolne terminy?
             semafor_close(global_semid);
@@ -249,12 +265,15 @@ int main(int argc, char *argv[])
             
             //exit(0); 
         }
-        if(i > 2){
-            sleep(3);
-        }else{
-            sleep(1);
-        }
         
+        int randGenTime = rand() % 5 + 2; // od 2 do 7 sek
+        sleep(randGenTime);
+        
+        // przychodnia zamknięta nie generuj pacjentów
+        if(globalVars_adres->time >= globalConst_adres->Tk){
+            printf("------------- Przychodnia zamknięta ---------------\n");
+            break;
+        }
     }
     printf("PACJENT: koniec generowania pajentów.\n");
 

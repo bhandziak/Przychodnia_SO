@@ -167,53 +167,53 @@ void handlePatient(Patient *patient){
 
     patientState* patient_state = przydziel_adres_pamieci_pacjent(patient);
 
-    // skierowanie do specjalisty
-    if(doctorID == POZ){
-        int r = rand() % 100;
-        int specsToChoose[3] = {KARDIOLOG, OKULISTA, MED_PRAC};
-        int statesToChoose[3] = {SECOND_DOCTOR_HEART, SECOND_DOCTOR_EYE, SECOND_DOCTOR_WORK};
-        // skieruj do spec (20%)
-        if(r < 20){
-            int rDoc = rand() % 3;
-            int secondDoctor = specsToChoose[rDoc];
-            int state = statesToChoose[rDoc];
-            char *doctorStr2 = doctor_name[secondDoctor];
-
-            semafor_close(global_semid);
-            if(globalVars_adres->X_free[secondDoctor] > 0){
-                printf("LEKARZ (%s): Rejestruję Pana %d do %s \n", doctorStr,patient->pid, doctorStr2 );
-                *patient_state = state;
-                globalVars_adres->X_free[secondDoctor]--; 
-            }else{
-                printf("LEKARZ (%s): Nie mogę zarejestrować Pana %d do %s (brak wolnych terminów)\n", doctorStr,patient->pid, doctorStr2 );
-                semafor_close(raport_semid);
-
-                fprintf(file_raport,"%d skierowanie do %s, wystawił (%d, %s)\n", patient->pid, doctorStr2, getpid(), doctorStr);
-
-                semafor_open(raport_semid);
-            }
-            semafor_open(global_semid);
-        }
-
-    }else{
-        // badania ambulatoryjne
-        if(*patient_state != TAKE_EXAM){ // nie miał wcześniej badań
+    // przychodnia musi być otwarta, żeby zlecać badania
+    if(globalVars_adres->time < globalConst_adres->Tk){
+        // skierowanie do specjalisty
+        if(doctorID == POZ){
             int r = rand() % 100;
-            // ok 10 %
-            if(r < 10){
-                *patient_state = TAKE_EXAM;
-                printf("LEKARZ (%s): Zlecam Panu %d wykonanie badania ambulatoryjnego\n", doctorStr,patient->pid );
+            int specsToChoose[3] = {KARDIOLOG, OKULISTA, MED_PRAC};
+            int statesToChoose[3] = {SECOND_DOCTOR_HEART, SECOND_DOCTOR_EYE, SECOND_DOCTOR_WORK};
+            // skieruj do spec (20%)
+            if(r < 20){
+                int rDoc = rand() % 3;
+                int secondDoctor = specsToChoose[rDoc];
+                int state = statesToChoose[rDoc];
+                char *doctorStr2 = doctor_name[secondDoctor];
+
+                semafor_close(global_semid);
+                if(globalVars_adres->X_free[secondDoctor] > 0){
+                    printf("LEKARZ (%s): Rejestruję Pana %d do %s \n", doctorStr,patient->pid, doctorStr2 );
+                    *patient_state = state;
+                    globalVars_adres->X_free[secondDoctor]--; 
+                }else{
+                    printf("LEKARZ (%s): Nie mogę zarejestrować Pana %d do %s (brak wolnych terminów)\n", doctorStr,patient->pid, doctorStr2 );
+                    semafor_close(raport_semid);
+
+                    fprintf(file_raport,"%d skierowanie do %s, wystawił (%d, %s)\n", patient->pid, doctorStr2, getpid(), doctorStr);
+
+                    semafor_open(raport_semid);
+                }
+                semafor_open(global_semid);
+            }
+
+        }else{
+            // badania ambulatoryjne
+            if(*patient_state != TAKE_EXAM){ // nie miał wcześniej badań
+                int r = rand() % 100;
+                // ok 10 %
+                if(r < 10){
+                    *patient_state = TAKE_EXAM;
+                    printf("LEKARZ (%s): Zlecam Panu %d wykonanie badania ambulatoryjnego\n", doctorStr,patient->pid );
+                }
             }
         }
     }
 
-    //evacuateFlag = false;
     sleep(15);
-    //interruptibleSleep(15, &evacuateFlag);
-    //if(!evacuateFlag){
-        semafor_open(patient->semid);
-    //}
-    //evacuateFlag = false;
+
+    semafor_open(patient->semid);
+
 }
 
 void endOfWork(int sig){

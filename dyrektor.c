@@ -23,6 +23,7 @@
 PublicVars* globalVars_adres;
 ConstVars* globalConst_adres;
 bool clockIsActive = true;
+bool isCloseTime = false;
 void *count_time(void *args);
 void *send_signal(void *args);
 void displayMenu();
@@ -31,11 +32,11 @@ void handleSignal2(int sig);
 int main(int argc, char *argv[])
 {
     ConstVars globalConst;
-    int X1 = 15;
-    int X2 = 8;
-    int X3 = 8;
-    int X4 = 8;
-    int X5 = 8;
+    int X1 = 30;
+    int X2 = 20;
+    int X3 = 20;
+    int X4 = 20;
+    int X5 = 20;
 
     int Xvals[] = {X1, X2, X3, X4, X5};
 
@@ -43,7 +44,7 @@ int main(int argc, char *argv[])
 
     globalConst.N = 15;
     globalConst.Tp = 0;
-    globalConst.Tk = 480;
+    globalConst.Tk = 300;
 
     // obsługa CTRL + C
 
@@ -109,11 +110,12 @@ void *count_time(void *args){
     {
         semafor_close(global_semid);
         convertTimeToStr(globalVars_adres->time, timeStr);
-        if(globalVars_adres->time >= globalConst_adres->Tk){
+        if(globalVars_adres->time >= globalConst_adres->Tk && !isCloseTime){
             printf("DYREKTOR: Jest godzina %s zamykam przychodnie\n", timeStr);
-            clockIsActive = false;
-            semafor_open(global_semid);
-            break;
+            isCloseTime = true;
+            // clockIsActive = false;
+            // semafor_open(global_semid);
+            // break;
         }
         globalVars_adres->time++;
         semafor_open(global_semid);

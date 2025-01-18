@@ -24,6 +24,10 @@ void evacuatePatients(int sig);
 int fifo_oknienko;
 bool evacuateFlag = false;
 
+int raport_semid;
+int global_semid;
+FILE* file_raport;
+
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
@@ -43,6 +47,9 @@ int main(int argc, char *argv[])
 
     // obsługa sygnału 2
     signal(SIGUSR2, evacuatePatients);
+
+    // plik raport.txt
+    file_raport = fopen("raport.txt", "a");
     
     // create FIFO
     create_fifo_queue(FIFO_REJESTRACJA);
@@ -56,7 +63,8 @@ int main(int argc, char *argv[])
     ConstVars* globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
     PublicVars* globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
 
-    int global_semid = globalConst_adres->idsemVars;
+    global_semid = globalConst_adres->idsemVars;
+    raport_semid = globalConst_adres->idsemRaport;
 
     // przypisanie PID do pamięci dzielonej
     semafor_close(global_semid);
@@ -111,12 +119,26 @@ int main(int argc, char *argv[])
             globalVars_adres->register_count -= patient.count;
             semafor_open(global_semid);
 
+            patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
+
+            // przychodnia się zamyka
+            if(globalVars_adres->time >= globalConst_adres->Tk){
+                printf("OKIENKO nr %d: Przychodnia zamknięta - wypiszę skierowanie ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
+
+                semafor_close(raport_semid);
+                fprintf(file_raport,"OKIENKO nr %d: %d skierowanie do %s, wystawił (%d)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr, getpid());
+                semafor_open(raport_semid);
+
+                *patient_state = REGISTER_FAIL;
+                semafor_open(patient.semid);
+                continue;
+            }
+
             printf("OKIENKO nr %d: Rejestruję ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
             //evacuateFlag = false;
             sleep(5);
             //interruptibleSleep(5, &evacuateFlag);
             
-            patientState* patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
             // czy dany lekarz ma wolne terminy?
             semafor_close(global_semid);
@@ -144,7 +166,7 @@ int main(int argc, char *argv[])
             semafor_open(global_semid);
             
             //if(!evacuateFlag){
-                semafor_open(patient.semid);
+            semafor_open(patient.semid);
             //}
             //evacuateFlag = false;
         }else{
@@ -160,6 +182,7 @@ int main(int argc, char *argv[])
     odlacz_pamiec(globalConst_adres);
     odlacz_pamiec(globalVars_adres);
     close(fifo_oknienko);
+    fclose(file_raport);
     return 0;
 }
 
