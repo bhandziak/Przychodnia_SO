@@ -195,6 +195,16 @@ void handlePatient(Patient *patient){
             semafor_open(global_semid);
         }
 
+    }else{
+        // badania ambulatoryjne
+        if(*patient_state != TAKE_EXAM){ // nie miał wcześniej badań
+            int r = rand() % 100;
+            // ok 10 %
+            if(r < 10){
+                *patient_state = TAKE_EXAM;
+                printf("LEKARZ (%s): Zlecam Panu %d wykonanie badania ambulatoryjnego\n", doctorStr,patient->pid );
+            }
+        }
     }
 
     //evacuateFlag = false;

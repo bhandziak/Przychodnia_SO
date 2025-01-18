@@ -207,6 +207,18 @@ int main(int argc, char *argv[])
                     }
                 }
 
+                // badania ambulatoryjne
+
+                if(*patient_state == TAKE_EXAM){
+                    printf("PACJENT %s: %d (%s) badania ambulatoryjne...\n",vipStatusStr ,patient.pid,  patient.doctorStr);
+                    sleep(15);
+
+                    printf("PACJENT %s: %d (%s) stoję w kolejce VIP do lekarza.\n",vipStatusStr ,patient.pid,  patient.doctorStr);
+                    write_fifo_patient(&patient, fifo_queues_doctor_vip[patient.doctor]);
+                    // czekaj na lekarza
+                    semafor_close(patient.semid);
+                }
+
                 // usunięcie pacjenta ze strefy gabinetów lekarskich
                 semafor_close(global_semid);
 
