@@ -256,14 +256,14 @@ void* utworz_pamiec(key_t key, size_t size, int* memid_p) {
     int memid = shmget(key, size, 0600 | IPC_CREAT);
     if (memid == -1) {
         perror("Problemy z utworzeniem SZCZEGOLNEJ pamieci dzielonej.\n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
     *memid_p = memid;
 
     void* addr = shmat(memid, NULL, 0);
     if (addr == (void*)(-1)) {
         perror("Problemy z adresem SZCZEGOLNEJ pamieci dzielonej\n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
 
     return addr;
@@ -273,14 +273,14 @@ void odlacz_pamiec(void* addr) {
     if (shmdt(addr) == -1)
     {
         perror("Problemy z odlaczeniem SZCZEGOLNEJ pamieci dzielonej.\n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
 }
 
 void usun_pamiec(int memid) {
     if (shmctl(memid, IPC_RMID, 0) == -1) {
         perror("Problemy z usunięciem SZCZEGOLNEJ pamieci dzielonej.\n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
 }
 

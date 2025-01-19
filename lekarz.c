@@ -280,9 +280,11 @@ void evacuatePatients(int sig){
     evacuateFlag = true;
     while (read(fifo_queue_doctor_id_vip, &patient, sizeof(Patient)) > 0)
     {
+        kill(patient.pid, SIGUSR2);
     }
 
     while (read(fifo_queue_doctor_id, &patient, sizeof(Patient)) > 0)
     {
+        kill(patient.pid, SIGUSR2);
     }
 }

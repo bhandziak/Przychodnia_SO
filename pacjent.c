@@ -18,11 +18,17 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 
+#include <pthread.h>
+#include <sys/syscall.h>
+
 patientState* patient_state;
 PublicVars* globalVars_adres;
 Patient patient;
 
+pthread_t threadChild;    // wątek dziecka
+
 int global_semid;
+int child_semid; // semafor dla dziecka
 
 int fifo_oknienko;
 int fifo_queues_doctor[6];
@@ -31,6 +37,7 @@ int fifo_queues_doctor_vip[6];
 doctorType choosePatientType();
 bool selectPatientVIP();
 void evacuate(int sig);
+void *handle_child(void *args);
 
 int main(int argc, char *argv[])
 {
@@ -99,6 +106,16 @@ int main(int argc, char *argv[])
             utworz_pamiec_pacjent(&patient);
             patient_state = przydziel_adres_pamieci_pacjent(&patient);
 
+            // tworzenie wątku dziecka i semafora
+            if(patient.doctor == PEDIATRIA){
+                if (pthread_create(&threadChild, NULL, handle_child, NULL) != 0) {
+                    perror("Błąd tworzenia wątku clock\n");
+                    exit(EXIT_FAILURE);
+                }
+                child_semid = utworz_nowy_semafor(patient.pid * 123);
+                semctl(child_semid, 0, SETVAL, 0);
+            }
+
             // pacjent stoi przed przychodnią
             // dodanie pacjenta do strefy zewnętrznej
             semafor_close(global_semid);
@@ -119,6 +136,12 @@ int main(int argc, char *argv[])
             if(globalVars_adres->time >= globalConst_adres->Tk){
                 // nie
                 printf("PACJENT %s: %d (%s) Przychodnia jest zamknięta. \n",vipStatusStr ,patient.pid, patient.doctorStr);
+
+                *patient_state = GO_HOME;
+                if(patient.doctor == PEDIATRIA){
+                    semafor_open(child_semid);
+                }
+
                 // usunięcie pacjenta ze strefy zewnętrznej
                 removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
                 semafor_open(global_semid);
@@ -132,6 +155,11 @@ int main(int argc, char *argv[])
             if(sumIntArray(globalVars_adres->X_free, DOCTOR_COUNT) <= 0){
                 // nie
                 printf("PACJENT %s: %d (%s) Wszyscy lekarze nie mają wolnych terminów. \n",vipStatusStr ,patient.pid, patient.doctorStr);
+
+                *patient_state = GO_HOME;
+                if(patient.doctor == PEDIATRIA){
+                    semafor_open(child_semid);
+                }
 
                 // usunięcie pacjenta ze strefy zewnętrznej
                 removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
@@ -168,6 +196,11 @@ int main(int argc, char *argv[])
             globalVars_adres->register_count+= patient.count;
 
             semafor_open(global_semid);
+
+            if(patient.doctor == PEDIATRIA){
+                semafor_open(child_semid);
+            }
+
             printf("PACJENT semid(%d) %s: %d (%s) stoję w kolejce do rejestracji...\n",patient.semid,vipStatusStr ,patient.pid, patient.doctorStr);
 
             write_fifo_patient(&patient, fifo_oknienko);
@@ -186,6 +219,10 @@ int main(int argc, char *argv[])
                 removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize ,patient.pid);
 
                 semafor_open(global_semid);
+
+                if(patient.doctor == PEDIATRIA){
+                    semafor_open(child_semid);
+                }
 
                 printf("PACJENT %s: %d (%s) stoję w kolejce do lekarza.\n",vipStatusStr ,patient.pid,  patient.doctorStr);
                 if(patient.vip){
@@ -242,6 +279,10 @@ int main(int argc, char *argv[])
 
                 semafor_open(global_semid);
 
+                if(patient.doctor == PEDIATRIA){
+                    semafor_open(child_semid);
+                }
+
             }else if(*patient_state == REGISTER_FAIL){
                 // usunięcie pacjenta ze strefy rejestracji
                 semafor_close(global_semid);
@@ -249,6 +290,10 @@ int main(int argc, char *argv[])
                 removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize,patient.pid);
 
                 semafor_open(global_semid);
+
+                if(patient.doctor == PEDIATRIA){
+                    semafor_open(child_semid);
+                }
 
                 printf("PACJENT %s: %d (%s) odrzucono moją rejestrację (brak terminów).\n", vipStatusStr,patient.pid, patient.doctorStr);
             }
@@ -258,6 +303,11 @@ int main(int argc, char *argv[])
             globalVars_adres->people_free_count+=patient.count;
 
             semafor_open(global_semid);
+
+            if(patient.doctor == PEDIATRIA){
+                pthread_join(threadChild, NULL);
+                usun_semafor(child_semid);
+            }
 
 
             close(fifo_oknienko);
@@ -327,6 +377,7 @@ bool selectPatientVIP(){
 
 void evacuate(int sig){
     // usunięcie pacjenta z pamięci dzielonej
+
     if(*patient_state == REGISTER || *patient_state == REGISTER_SUCCESS){
         semafor_close(global_semid);
 
@@ -355,6 +406,12 @@ void evacuate(int sig){
     
     // zmiana stanu
     *patient_state = GO_HOME;
+    if(patient.doctor == PEDIATRIA){
+        semafor_open(child_semid);
+        removeFromArrayInt(globalVars_adres->registerZonePatientPID,&globalVars_adres->registerZonePatientPIDsize ,patient.tidChild);
+        removeFromArrayInt(globalVars_adres->doctorZonePatientPID,&globalVars_adres->doctorZonePatientPIDsize ,patient.tidChild);
+    }
+
     printf("PACJENT: %d (%s) ewakuuję się!\n",patient.pid, patient.doctorStr);
 
     // zwolnienie miejsca
@@ -364,6 +421,72 @@ void evacuate(int sig){
 
     semafor_open(global_semid);
 
+    if(patient.doctor == PEDIATRIA){
+        pthread_join(threadChild, NULL);
+        usun_semafor(child_semid);
+    }
+
     // go home
     goHomePatient(&patient, patient_state);
+}
+
+void *handle_child(void *args){
+    int tid = syscall(SYS_gettid);
+    patient.tidChild = tid;
+    printf("DZIECKO: %d Jestem z rodzicem %d \n", tid, patient.pid);
+    // na zewnątrz
+    semafor_close(global_semid);
+    appendToArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,tid);
+    semafor_open(global_semid);
+
+    semafor_close(child_semid);
+    // do domu
+    if(*patient_state == GO_HOME){
+        semafor_close(global_semid);
+        removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,tid);
+        semafor_open(global_semid);
+        printf("DZIECKO: %d (r. %d ) idę do domu\n", tid, patient.pid);
+        return NULL;
+    }
+    // do rejestracji
+    printf("DZIECKO: %d (r. %d ) stoję w kolejce do rejestracji\n", tid, patient.pid);
+    semafor_close(global_semid);
+    appendToArrayInt(globalVars_adres->registerZonePatientPID,&globalVars_adres->registerZonePatientPIDsize ,tid);
+    removeFromArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,tid);
+    semafor_open(global_semid);
+
+
+    semafor_close(child_semid);
+
+    // do domu
+    if(*patient_state == REGISTER_FAIL || *patient_state == GO_HOME || patient_state == NULL){
+        semafor_close(global_semid);
+        removeFromArrayInt(globalVars_adres->registerZonePatientPID,&globalVars_adres->registerZonePatientPIDsize ,tid);
+        semafor_open(global_semid);
+        printf("DZIECKO: %d (r. %d ) idę do domu (brak terminów lub ewakuacja)\n", tid, patient.pid);
+        return NULL;
+    }
+
+    // do lekarza
+    printf("DZIECKO: %d (r. %d ) stoję w kolejce do lekarza\n", tid, patient.pid);
+    semafor_close(global_semid);
+
+    appendToArrayInt(globalVars_adres->doctorZonePatientPID, &globalVars_adres->doctorZonePatientPIDsize,tid);
+    removeFromArrayInt(globalVars_adres->registerZonePatientPID, &globalVars_adres->registerZonePatientPIDsize ,tid);
+
+    semafor_open(global_semid);
+
+    semafor_close(child_semid);
+
+    // koniec
+
+    printf("DZIECKO: %d (r. %d ) idę do domu\n", tid, patient.pid);
+
+    semafor_close(global_semid);
+
+    removeFromArrayInt(globalVars_adres->doctorZonePatientPID,&globalVars_adres->doctorZonePatientPIDsize ,tid);
+
+    semafor_open(global_semid);
+
+    return NULL;   
 }

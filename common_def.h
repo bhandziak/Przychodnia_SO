@@ -40,6 +40,7 @@ typedef struct {
     int memid;
     bool vip;
     int count;
+    int tidChild;
 } Patient;
 
 typedef struct {

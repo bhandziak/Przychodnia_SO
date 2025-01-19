@@ -24,6 +24,7 @@ PublicVars* globalVars_adres;
 ConstVars* globalConst_adres;
 bool clockIsActive = true;
 bool isCloseTime = false;
+
 void *count_time(void *args);
 void *send_signal(void *args);
 void displayMenu();
@@ -42,7 +43,7 @@ int main(int argc, char *argv[])
 
     memcpy(globalConst.X, Xvals, sizeof(Xvals));
 
-    globalConst.N = 15;
+    globalConst.N = 20;
     globalConst.Tp = 0;
     globalConst.Tk = 300;
 
@@ -62,6 +63,7 @@ int main(int argc, char *argv[])
     int globalConst_memid;
     globalConst.idsemVars = utworz_nowy_semafor(KEY_GLOBAL_SEMAPHORE);
     globalConst.idsemRaport = utworz_nowy_semafor(KEY_RAPORT_TXT);
+
     printf("SEMID GLOBANY: %d\n", globalConst.idsemVars);
 
     globalConst_adres = (ConstVars*)utworz_pamiec(KEY_GLOBAL_CONST, sizeof(ConstVars),&globalConst_memid);
@@ -193,18 +195,7 @@ void *send_signal(void *args){
 void handleSignal2(int sig){
     printf("\n Wywołuję sygnał o ewakuacji... \n");
 
-    // sygnał dla rejestracji
-    for(int i = 0; i < 2; i++){
-        if(globalVars_adres->registerPID[i] > 0){
-            kill(globalVars_adres->registerPID[i], SIGUSR2);
-        }
-    }
-    // sygnał dla lekarzy
-    for(int i = 0; i < 6; i++){
-        if(globalVars_adres->doctorPID[i] > 0){
-            kill(globalVars_adres->doctorPID[i], SIGUSR2);
-        }
-    }
+
     // sygnał dla pacjentów w rejestracji
     for(int i = 0; i < globalVars_adres->registerZonePatientPIDsize; i++){
         if(globalVars_adres->registerZonePatientPID[i] > 0){
@@ -215,6 +206,18 @@ void handleSignal2(int sig){
     for(int i = 0; i < globalVars_adres->registerZonePatientPIDsize; i++){
         if(globalVars_adres->doctorZonePatientPID[i] > 0){
             kill(globalVars_adres->doctorZonePatientPID[i], SIGUSR2);
+        }
+    }
+    // sygnał dla rejestracji
+    for(int i = 0; i < 2; i++){
+        if(globalVars_adres->registerPID[i] > 0){
+            kill(globalVars_adres->registerPID[i], SIGUSR2);
+        }
+    }
+    // sygnał dla lekarzy
+    for(int i = 0; i < 6; i++){
+        if(globalVars_adres->doctorPID[i] > 0){
+            kill(globalVars_adres->doctorPID[i], SIGUSR2);
         }
     }
 

@@ -190,5 +190,6 @@ void evacuatePatients(int sig){
   Patient patient;
   evacuateFlag = true;
   while(read(fifo_oknienko, &patient, sizeof(patient)) > 0){
+    kill(patient.pid, SIGUSR2);
   }
 }
