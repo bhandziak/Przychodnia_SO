@@ -33,7 +33,7 @@ void handleSignal2(int sig);
 int main(int argc, char *argv[])
 {
     ConstVars globalConst;
-    int X1 = 30;
+    int X1 = 30; // limity przyjęć dla lekarzy
     int X2 = 20;
     int X3 = 20;
     int X4 = 20;
@@ -43,9 +43,9 @@ int main(int argc, char *argv[])
 
     memcpy(globalConst.X, Xvals, sizeof(Xvals));
 
-    globalConst.N = 20;
-    globalConst.Tp = 0;
-    globalConst.Tk = 300;
+    globalConst.N = 20; // max pojemność budynku
+    globalConst.Tp = 0; 
+    globalConst.Tk = 120; // godzina zamknięcia
 
     // obsługa CTRL + C
 
@@ -115,9 +115,10 @@ void *count_time(void *args){
         if(globalVars_adres->time >= globalConst_adres->Tk && !isCloseTime){
             printf("DYREKTOR: Jest godzina %s zamykam przychodnie\n", timeStr);
             isCloseTime = true;
-            // clockIsActive = false;
-            // semafor_open(global_semid);
-            // break;
+
+        }else if(globalVars_adres->time >= globalConst_adres->Tk + 3){
+            clockIsActive = false;
+            exit(0);
         }
         globalVars_adres->time++;
         semafor_open(global_semid);

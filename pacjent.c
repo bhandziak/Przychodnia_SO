@@ -31,8 +31,8 @@ int global_semid;
 int child_semid; // semafor dla dziecka
 
 int fifo_oknienko;
-int fifo_queues_doctor[6];
-int fifo_queues_doctor_vip[6];
+int fifo_queues_doctor[5];
+int fifo_queues_doctor_vip[5];
 
 doctorType choosePatientType();
 bool selectPatientVIP();
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
     int fifo_queues_doctor[queues_doctor_count];
     int fifo_queues_doctor_vip[queues_doctor_count];
 
-    for(int i = 0; i < queues_doctor_count-1; i++){
+    for(int i = 0; i < queues_doctor_count; i++){
         char* fifo_doctor_name = fifo_queue_doctor[i];
         char* fifo_doctor_name_vip = fifo_queue_VIP_doctor[i];
         printf("Otwieram FIFO %s ... \n",fifo_doctor_name);
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
     // createPatients
     for(int i=0; i < numOfPatients; i++){
-        if(fork() == 0){ // DODAĆ sprawdzenie max procesów w systemie
+        if(fork() == 0){
             srand(getpid());
             // send PID
             patient.pid = getpid();
@@ -96,6 +96,8 @@ int main(int argc, char *argv[])
             patient.vip = selectPatientVIP();
             patient.count = (patient.doctor == PEDIATRIA) ? 2 : 1;
             char *vipStatusStr = (patient.vip) ? "VIP" : "";
+
+            patient.age =  rand()%40 + 18;
 
             char* doctorStr = doctor_name[patient.doctor];
             strcpy(patient.doctorStr, doctorStr);
@@ -120,7 +122,7 @@ int main(int argc, char *argv[])
             // dodanie pacjenta do strefy zewnętrznej
             semafor_close(global_semid);
 
-            printf("PACJENT %s: %d (%s) Właśnie przyszedłem do przychodni. \n",vipStatusStr ,patient.pid, patient.doctorStr);
+            printf("PACJENT %s (%d lat): %d (%s) Właśnie przyszedłem do przychodni. \n",vipStatusStr,patient.age ,patient.pid, patient.doctorStr);
 
             appendToArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,patient.pid);
 
@@ -140,6 +142,7 @@ int main(int argc, char *argv[])
                 *patient_state = GO_HOME;
                 if(patient.doctor == PEDIATRIA){
                     semafor_open(child_semid);
+                    usun_semafor(child_semid);
                 }
 
                 // usunięcie pacjenta ze strefy zewnętrznej
@@ -159,6 +162,7 @@ int main(int argc, char *argv[])
                 *patient_state = GO_HOME;
                 if(patient.doctor == PEDIATRIA){
                     semafor_open(child_semid);
+                    usun_semafor(child_semid);
                 }
 
                 // usunięcie pacjenta ze strefy zewnętrznej
@@ -230,13 +234,11 @@ int main(int argc, char *argv[])
                     // czekaj na lekarza
                     semafor_close(patient.semid);
 
-                    //close(fifo_queues_doctor_vip[patient.doctor]);
                 }else{
                     write_fifo_patient(&patient, fifo_queues_doctor[patient.doctor]);
                     // czekaj na lekarza
                     semafor_close(patient.semid);
 
-                    //close(fifo_queues_doctor[patient.doctor]);
                 }
                 
                 // dodatkowa rejestracja do specjalisty
@@ -313,11 +315,14 @@ int main(int argc, char *argv[])
             close(fifo_oknienko);
             goHomePatient(&patient, patient_state);
             
-            //exit(0); 
+        }else if(errno == EAGAIN){ // limit procesów
+            perror("Osiagnieto limit procesów! \n");
+            break;
         }
         
         int randGenTime = rand() % 5 + 2; // od 2 do 7 sek
         sleep(randGenTime);
+        
         
         // przychodnia zamknięta nie generuj pacjentów
         if(globalVars_adres->time >= globalConst_adres->Tk){
@@ -333,7 +338,7 @@ int main(int argc, char *argv[])
     
     close(fifo_oknienko);
     unlink(FIFO_REJESTRACJA);
-    for(int i = 0; i < queues_doctor_count-1; i++){
+    for(int i = 0; i < queues_doctor_count; i++){
         close(fifo_queues_doctor[i]);
         close(fifo_queues_doctor_vip[i]);
         char* fifo_doctor_name = fifo_queue_doctor[i];
@@ -353,6 +358,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// funkcja losująca chorobę dla pacjenta
 doctorType choosePatientType() {
     int r = rand() % 100;
     if (r < 60) {
@@ -367,6 +373,7 @@ doctorType choosePatientType() {
     return MED_PRAC;
 }
 
+// funkcja wybierająca pacjenta VIP
 bool selectPatientVIP(){
     int r = rand() % 100;
     if( r < 20){
@@ -375,6 +382,7 @@ bool selectPatientVIP(){
     return false;
 }
 
+// obsługa ewakuacji
 void evacuate(int sig){
     // usunięcie pacjenta z pamięci dzielonej
 
@@ -430,10 +438,12 @@ void evacuate(int sig){
     goHomePatient(&patient, patient_state);
 }
 
+// funkcja obsługująca wątek dziecka
 void *handle_child(void *args){
     int tid = syscall(SYS_gettid);
+    int age = rand() % 18; 
     patient.tidChild = tid;
-    printf("DZIECKO: %d Jestem z rodzicem %d \n", tid, patient.pid);
+    printf("DZIECKO:(%d) (%d lat) Jestem z rodzicem %d \n",tid ,age, patient.pid);
     // na zewnątrz
     semafor_close(global_semid);
     appendToArrayInt(globalVars_adres->outsidePatientPID,&globalVars_adres->outsidePatientPIDsize ,tid);
@@ -481,6 +491,7 @@ void *handle_child(void *args){
     // koniec
 
     printf("DZIECKO: %d (r. %d ) idę do domu\n", tid, patient.pid);
+
 
     semafor_close(global_semid);
 

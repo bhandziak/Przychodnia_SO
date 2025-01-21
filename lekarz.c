@@ -155,9 +155,7 @@ int main(int argc, char *argv[])
     odlacz_pamiec(globalConst_adres);
     odlacz_pamiec(globalVars_adres);
     close(fifo_queue_doctor_id);
-    //unlink(fifo_name);
     close(fifo_queue_doctor_id_vip);
-    //unlink(fifo_name_vip);
     fclose(file_raport);
     return 0;
 }

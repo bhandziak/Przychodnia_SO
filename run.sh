@@ -1,20 +1,5 @@
 #!/bin/bash
 
-./dyrektor &
+gnome-terminal -- bash -c "./dyrektor; echo 'Press Enter to exit'; read"
 
-sleep 2
-
-./lekarz 0 &
-./lekarz 5 &
-./lekarz 1 &
-./lekarz 2 &
-./lekarz 3 &
-./lekarz 4 &
-
-sleep 3
-
-./pacjent 10 &
-
-./przychodnia 0 &
-sleep 3
-./przychodnia 1 
+gnome-terminal -- bash -c "./term2.sh; exec bash"

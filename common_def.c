@@ -18,11 +18,11 @@
 #include <string.h>
 
 char* fifo_queue_doctor[] = {
-    "fifo_POZ", "fifo_HEART", "fifo_EYE", "fifo_CHILD", "fifo_WORK", "fifo_EXAM"
+    "fifo_POZ", "fifo_HEART", "fifo_EYE", "fifo_CHILD", "fifo_WORK"
 };
 
 char* fifo_queue_VIP_doctor[] = {
-    "fifo_POZ_VIP", "fifo_HEART_VIP", "fifo_EYE_VIP", "fifo_CHILD_VIP", "fifo_WORK_VIP", "fifo_EXAM_VIP"
+    "fifo_POZ_VIP", "fifo_HEART_VIP", "fifo_EYE_VIP", "fifo_CHILD_VIP", "fifo_WORK_VIP"
 };
 
 int queues_doctor_count = sizeof(fifo_queue_doctor) / sizeof(fifo_queue_doctor[0]);
@@ -148,16 +148,12 @@ void semafor_close(int semid)
         if(errno == EINTR){ //ubsluga bledu zatrzymania
         semafor_close(semid);
         }
-        else if (errno == EINVAL) {
-            printf("Niepoprawny semafor (semid = %d)\n", semid);
-        } else if (errno == EOVERFLOW) {
+        if (errno == EOVERFLOW) {
             printf("Przekroczenie zakresu wartości semafora (semid = %d)\n", semid);
         }
         else
         {
-        printf("semmid %d",semid);
-        perror("Nie moglem zamknac semafora.\n");
-        exit(EXIT_FAILURE);
+        printf("semmid %d\n",semid);
         }
       }
     else
@@ -176,14 +172,10 @@ void semafor_open(int semid)
     zmien_sem=semop(semid,&bufor_sem,1);
     if (zmien_sem==-1) 
       {
-        if (errno == EINVAL) {
-            printf("Niepoprawny semafor (semid = %d)\n", semid);
-        } else if (errno == EOVERFLOW) {
+        if (errno == EOVERFLOW) {
             printf("Przekroczenie zakresu wartości semafora (semid = %d)\n", semid);
         }
         printf("semmid %d\n",semid);
-        perror("Nie moglem otworzyc semafora.\n");
-        exit(EXIT_FAILURE);
       }
     else
       {
@@ -287,7 +279,7 @@ void usun_pamiec(int memid) {
 // -------------------- FIFO --------------------
 
 void create_fifo_queue(char* name){
-    if (access(name, F_OK) == 0) {
+    if (access(name, F_OK) >= 0) {
         return;
     }
 

@@ -41,6 +41,7 @@ typedef struct {
     bool vip;
     int count;
     int tidChild;
+    int age;
 } Patient;
 
 typedef struct {
@@ -58,11 +59,11 @@ typedef struct {
     int X_free[6]; // liczba wolnych miejsc do konkretnego lekarzas
     int time; // aktualny czas
 
-    int registerPID[2];
+    int registerPID[2]; // PIDy okienek
 
-    int doctorPID[6];
+    int doctorPID[6]; // PIDy lekarzy
 
-    int outsidePatientPID[MAX_GEN_PATIENTS];
+    int outsidePatientPID[MAX_GEN_PATIENTS]; // PIDy pacjentów
     int outsidePatientPIDsize;
 
     int registerZonePatientPID[MAX_GEN_PATIENTS];

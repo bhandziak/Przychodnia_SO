@@ -2,7 +2,7 @@
 
 sleep 2
 
-./lekarz 0 &
+./lekarz 0 & # typy lekarzy
 ./lekarz 5 &
 ./lekarz 1 &
 ./lekarz 2 &
@@ -11,8 +11,8 @@ sleep 2
 
 sleep 3
 
-./pacjent 200 &
+./pacjent 200 & # max ilość pacjentów
 
-./przychodnia 0 &
+./rejestracja 0 & # nr okienka
 sleep 3
-./przychodnia 1 
+./rejestracja 1 

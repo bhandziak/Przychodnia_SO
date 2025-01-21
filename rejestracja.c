@@ -135,9 +135,7 @@ int main(int argc, char *argv[])
             }
 
             printf("OKIENKO nr %d: Rejestruję ... %d (%s)\n",NUMER_OKIENKA ,patient.pid, patient.doctorStr);
-            //evacuateFlag = false;
             sleep(5);
-            //interruptibleSleep(5, &evacuateFlag);
             
 
             // czy dany lekarz ma wolne terminy?
@@ -165,10 +163,8 @@ int main(int argc, char *argv[])
             }
             semafor_open(global_semid);
             
-            //if(!evacuateFlag){
             semafor_open(patient.semid);
-            //}
-            //evacuateFlag = false;
+
         }else{
           sleep(1);
         }
@@ -186,6 +182,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// ewakuacja
 void evacuatePatients(int sig){
   Patient patient;
   evacuateFlag = true;
