@@ -20,6 +20,8 @@
 
 #include <pthread.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
+
 
 patientState* patient_state;
 PublicVars* globalVars_adres;
@@ -38,6 +40,7 @@ doctorType choosePatientType();
 bool selectPatientVIP();
 void evacuate(int sig);
 void *handle_child(void *args);
+void patient_exit_handler(int signo);
 
 int main(int argc, char *argv[])
 {
@@ -48,12 +51,18 @@ int main(int argc, char *argv[])
 
     int numOfPatients = atoi(argv[1]);
 
+
     int randGenTime; // co ile pojawiają się nowi pacjenci
 
+    // sygnał niszczący zombie
+    struct sigaction sa;
+    sa.sa_handler = patient_exit_handler;
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+    sigaction(SIGCHLD, &sa, NULL);
     
     while (access(FIFO_REJESTRACJA, F_OK) == -1) {
-        printf("PACJENT: Czekam na utworzenie kolejki FIFO_REJESTRACJA...\n");
-        sleep(3);
+        //printf("PACJENT: Czekam na utworzenie kolejki FIFO_REJESTRACJA...\n");
+        sleep(1);
     }
 
     // obsługa sygnału 2
@@ -86,8 +95,29 @@ int main(int argc, char *argv[])
     global_semid = globalConst_adres->idsemVars;
     int raport_semid = globalConst_adres->idsemRaport;
 
+    // limit procesów
+    struct rlimit rlp;
+    getrlimit(RLIMIT_NPROC, &rlp);
+
+    if(numOfPatients >= rlp.rlim_max){
+        perror("Program może być niebezpieczny do uruchomienia - zbyt dużo procesów\n");
+        semafor_close(global_semid);
+        globalConst_adres->Tk = 0;
+        globalConst_adres->Tp = 0;
+        globalVars_adres->time = 0; // ustawiam czas na zamknięcie przychodni (bezpieczne zamknięcie programu)
+        semafor_open(global_semid);
+
+    }
+
     // createPatients
     for(int i=0; i < numOfPatients; i++){
+        // przychodnia zamknięta nie generuj pacjentów
+        if(globalVars_adres->time >= globalConst_adres->Tk){
+            printf("------------- Przychodnia zamknięta ---------------\n");
+            break;
+        }
+
+
         if(fork() == 0){
             srand(getpid());
             // send PID
@@ -323,12 +353,7 @@ int main(int argc, char *argv[])
         int randGenTime = rand() % 5 + 2; // od 2 do 7 sek
         sleep(randGenTime);
         
-        
-        // przychodnia zamknięta nie generuj pacjentów
-        if(globalVars_adres->time >= globalConst_adres->Tk){
-            printf("------------- Przychodnia zamknięta ---------------\n");
-            break;
-        }
+    
     }
     printf("PACJENT: koniec generowania pajentów.\n");
 
@@ -336,6 +361,7 @@ int main(int argc, char *argv[])
         wait(NULL); 
     }
     
+
     close(fifo_oknienko);
     unlink(FIFO_REJESTRACJA);
     for(int i = 0; i < queues_doctor_count; i++){
@@ -500,4 +526,11 @@ void *handle_child(void *args){
     semafor_open(global_semid);
 
     return NULL;   
+}
+
+void patient_exit_handler(int signo) {
+    int status;
+    pid_t pid;
+    while (waitpid(-1, &status, WNOHANG) > 0) {
+    }
 }

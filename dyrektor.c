@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
     globalConst.N = 20; // max pojemność budynku
     globalConst.Tp = 0; 
-    globalConst.Tk = 120; // godzina zamknięcia
+    globalConst.Tk = 180; // godzina zamknięcia
 
     // obsługa CTRL + C
 
@@ -84,18 +84,35 @@ int main(int argc, char *argv[])
     globalVars_adres = (PublicVars*)utworz_pamiec(KEY_GLOBAL_VARS, sizeof(PublicVars), &globalVars_memid);
     *globalVars_adres = publicVars;
 
-
-
     pthread_t threadClock, threadSendSignal;
+
+    // błędny input 
+    if(
+        X1 < 0 || X2 < 0 || X3 < 0 || X4 < 0 || X5 < 0 ||
+        globalConst.N <= 0 ||
+        globalConst.Tp > globalConst.Tk ||
+        globalConst.Tp < 0 || globalConst.Tp < 0
+    ){
+        int global_semid = globalConst_adres->idsemVars;
+        perror("Podano błędne dane\n");
+        semafor_close(global_semid);
+        globalConst_adres->Tk = 1;
+        globalConst_adres->Tp = 0;
+        globalVars_adres->time = 0; // ustawiam czas na zamknięcie przychodni (bezpieczne zamknięcie programu)
+        semafor_open(global_semid);
+    }else{
+
+        if (pthread_create(&threadSendSignal, NULL, send_signal, NULL) != 0) {
+            perror("Błąd tworzenia wątku send_signal\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
     if (pthread_create(&threadClock, NULL, count_time, NULL) != 0) {
         perror("Błąd tworzenia wątku clock\n");
         exit(EXIT_FAILURE);
     }
 
-    if (pthread_create(&threadSendSignal, NULL, send_signal, NULL) != 0) {
-        perror("Błąd tworzenia wątku send_signal\n");
-        exit(EXIT_FAILURE);
-    }
 
     pthread_join(threadClock, NULL);
     pthread_join(threadSendSignal, NULL);

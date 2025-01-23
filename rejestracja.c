@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
                 semafor_open(global_semid);
                 continue;
             }else{
-                printf("OKIENKO: jest %d pacjentów w kolejce \n", globalVars_adres->register_count);
+                //printf("OKIENKO: jest %d pacjentów w kolejce \n", globalVars_adres->register_count);
                 semafor_open(global_semid);
                 sleep(1);
                 continue;

@@ -5,6 +5,8 @@
         "stat.h": "c",
         "types.h": "c",
         "fcntl.h": "c",
-        "shm.h": "c"
-    }
+        "shm.h": "c",
+        "resource.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "enabled"
 }
