@@ -31,6 +31,8 @@ char* doctor_name[] = {
     "POZ", "Kardiolog", "Okulista", "Pediatria", "Medycyna pracy"
 };
 
+// funkcja sumująca wartości z tablicy
+
 int sumIntArray(int tab[], int lenght){
   int sum = 0;
   for(int i = 0; i < lenght; i++ ){
@@ -38,6 +40,11 @@ int sumIntArray(int tab[], int lenght){
   }
   return sum;
 }
+
+// Funkcja kończąca pracę pacjenta
+// IN:
+//   - wskaźnik na Patient
+//   - wskaźnik na stan pacjenta
 
 void goHomePatient(Patient *patient, patientState* patient_state){
   *patient_state = GO_HOME;
@@ -48,6 +55,11 @@ void goHomePatient(Patient *patient, patientState* patient_state){
   exit(0);
 }
 
+// Funkcja zamieniająca czas na char*
+// IN:
+//   - czas w int
+//   - wskaźnik na timeStr
+
 void convertTimeToStr(int time, char* timeStr){
   int minutes = time % 60;
   int hours = (time / 60 + 6) % 24;
@@ -55,8 +67,9 @@ void convertTimeToStr(int time, char* timeStr){
   snprintf(timeStr, 6, "%02d:%02d", hours, minutes);
 }
 
-// Dynamic Array
+// ------------------------ Dynamic Array
 
+// Dodanie elementu do dynamicznej tablicy
 
 void appendToArrayInt(int* array,int* size ,int element){
   if(*size < MAX_GEN_PATIENTS){
@@ -68,6 +81,8 @@ void appendToArrayInt(int* array,int* size ,int element){
   }
 
 }
+
+// Usunięcie elementu z dynamicznej tablicy
 
 void removeFromArrayInt(int* array,int* size,  int value) {
     if (*size == 0) {
@@ -94,6 +109,8 @@ void removeFromArrayInt(int* array,int* size,  int value) {
     (*size)--;
 }
 
+// Drukowanie dynamicznej tablicy
+
 void printDynamicArrayInt(int* array,int size ){
   for(int i=0; i < size; i++){
     printf("%d", array[i]);
@@ -106,6 +123,11 @@ void printDynamicArrayInt(int* array,int size ){
 }
 
 // --------- SEMAFORY ------------------
+
+// Funkcja tworzy nowy semafor dla pacjenta, który jest przypisany do procesu pacjenta.
+// Wykorzystuje identyfikator PID pacjenta do wygenerowania unikalnego klucza semafora.
+// IN:
+//    - wskaźnik na Patient
 
 void utworz_nowy_semafor_pacjent(Patient *patient)
   {
@@ -123,6 +145,10 @@ void utworz_nowy_semafor_pacjent(Patient *patient)
       }
   }
 
+// Funkcja tworzy nowy semafor przy użyciu podanego klucza
+// IN:
+//    - unikalny klucz
+
 int utworz_nowy_semafor(key_t key){
   int semid = semget(key,1,0600|IPC_CREAT); 
   if (semid==-1)
@@ -134,6 +160,10 @@ int utworz_nowy_semafor(key_t key){
   semctl(semid, 0, SETVAL, 1);
   return semid;
 }
+
+// Funkcja zamykająca semafor (operacja 'wait')
+// IN: 
+//    -semid - identyfikator semafora
 
 void semafor_close(int semid)
   {
@@ -162,6 +192,10 @@ void semafor_close(int semid)
       }
   }
 
+// Funkcja otwierająca semafor (operacja 'signal')
+// IN: 
+//    -semid - identyfikator semafora
+
 void semafor_open(int semid)
   {
     int zmien_sem;
@@ -183,6 +217,10 @@ void semafor_open(int semid)
       }
   }
 
+// Funkcja usuwająca semafor
+// IN: 
+//    -semid - identyfikator semafora
+
 void usun_semafor(int semid)  
   {
     int sem;
@@ -202,6 +240,9 @@ void usun_semafor(int semid)
 
   //------------------------PAMIEC----------------------
 
+// Funkcja tworząca pamięć dzieloną dla stanu pacjenta
+// IN: 
+//  -wskaźnik Patient
 
 void utworz_pamiec_pacjent(Patient *patient)
   {
@@ -219,6 +260,12 @@ void utworz_pamiec_pacjent(Patient *patient)
     }
   }
 
+// Funkcja przydzielająca adres pamięci dzielonej dla stanu pacjenta
+// IN: 
+//  -wskaźnik Patient
+// OUT:
+//   - adres patientState*
+
 patientState* przydziel_adres_pamieci_pacjent(Patient *patient)
   {
     patientState* state = (patientState*)shmat(patient->memid, NULL, 0);
@@ -229,6 +276,11 @@ patientState* przydziel_adres_pamieci_pacjent(Patient *patient)
 
     return state;
   }
+
+// Funkcja odłączająca pamięć dzieloną stanu pacjenta
+// IN: 
+//  -wskaźnik Patient
+//   -adres patientState*
 
 void odlacz_pamiec_pacjent(Patient *patient, patientState* state)
   {
@@ -243,6 +295,12 @@ void odlacz_pamiec_pacjent(Patient *patient, patientState* state)
   }
 
 // DYREKTOR
+
+// Funkcja tworzy pamięć dzieloną i zwraca do niej adres
+// IN: 
+// - key - unikalny klucz 
+// - size - rozmiar struktury
+// - wskaźnik do memid_p id pamięci dzielonej
 
 void* utworz_pamiec(key_t key, size_t size, int* memid_p) {
     int memid = shmget(key, size, 0600 | IPC_CREAT);
@@ -261,6 +319,8 @@ void* utworz_pamiec(key_t key, size_t size, int* memid_p) {
     return addr;
 }
 
+// odłącza pamięć dzieloną
+
 void odlacz_pamiec(void* addr) {
     if (shmdt(addr) == -1)
     {
@@ -268,6 +328,8 @@ void odlacz_pamiec(void* addr) {
         //exit(EXIT_FAILURE);
     }
 }
+
+// usuwa pamięć dzieloną
 
 void usun_pamiec(int memid) {
     if (shmctl(memid, IPC_RMID, 0) == -1) {
@@ -277,6 +339,8 @@ void usun_pamiec(int memid) {
 }
 
 // -------------------- FIFO --------------------
+
+// tworzy kolejkę fifo na podstawie nazwy str
 
 void create_fifo_queue(char* name){
     if (access(name, F_OK) >= 0) {
@@ -288,6 +352,8 @@ void create_fifo_queue(char* name){
     }
 }
 
+// otwiera kolejkę fifo w trybie O_RDONLY | O_NONBLOCK na podstawie nazwy str
+
 int open_read_only_fifo(char* name){
     // read only FIFO
     int fifo_queue = open(name, O_RDONLY | O_NONBLOCK);
@@ -298,6 +364,8 @@ int open_read_only_fifo(char* name){
     return fifo_queue;
 }
 
+// otwiera kolejkę fifo w trybie O_WRONLY na podstawie nazwy str
+
 int open_write_only_fifo(char* name){
     // write only FIFO
     int fifo_queue = open(name, O_WRONLY);
@@ -307,6 +375,11 @@ int open_write_only_fifo(char* name){
     }
     return fifo_queue;
 }
+
+// zapisuje struktuję pacjenta do kolejki
+// IN:
+//    - wskaźnik do struktury Patient
+//     - deskryptor pliku FIFO
 
 int write_fifo_patient(Patient *patient, int queue){
     if (write(queue, patient, sizeof(Patient)) == -1) {

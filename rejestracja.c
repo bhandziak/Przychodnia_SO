@@ -182,7 +182,9 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-// ewakuacja
+// Funkcja czyszcząca kolejkę fifo
+// Dodatkowo wysyła sygnał 2 do pacjenta
+
 void evacuatePatients(int sig){
   Patient patient;
   evacuateFlag = true;

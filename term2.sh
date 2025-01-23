@@ -11,7 +11,7 @@ sleep 0.3
 
 sleep 0.3
 
-./pacjent 200 & # max ilość pacjentów
+./pacjent 50 & # max ilość pacjentów
 
 ./rejestracja 0 & # nr okienka
 

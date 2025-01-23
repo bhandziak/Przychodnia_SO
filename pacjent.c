@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
                 }
                 printf("PACJENT %s: %d (%s) Osiągnięto LIMIT N (pojemności przychodni)! czekam ...\n",vipStatusStr ,patient.pid, patient.doctorStr);
                 semafor_open(global_semid);
-                sleep(1);
+                sleep(3);
             }
 
             *patient_state = REGISTER;
@@ -385,6 +385,8 @@ int main(int argc, char *argv[])
 }
 
 // funkcja losująca chorobę dla pacjenta
+// OUT:
+//      - typ lekarza (doctorType - enum)
 doctorType choosePatientType() {
     int r = rand() % 100;
     if (r < 60) {
@@ -399,7 +401,10 @@ doctorType choosePatientType() {
     return MED_PRAC;
 }
 
-// funkcja wybierająca pacjenta VIP
+// funkcja losująca pacjenta VIP
+// OUT:
+//      - wartość bool, true - VIP
+
 bool selectPatientVIP(){
     int r = rand() % 100;
     if( r < 20){
@@ -408,7 +413,14 @@ bool selectPatientVIP(){
     return false;
 }
 
-// obsługa ewakuacji
+// Funkcja obsługująca ewakuację pacjenta w odpowiedzi na sygnał 2
+// Funkcja usuwa pacjenta z pamięci dzielonej, aktualizuje stany systemu, zamyka odpowiednie kolejki FIFO
+// oraz zmienia stan pacjenta na "GO_HOME".
+// IN:
+//   - kod sygnału
+// OUT:
+//     VOID
+
 void evacuate(int sig){
     // usunięcie pacjenta z pamięci dzielonej
 
@@ -464,7 +476,13 @@ void evacuate(int sig){
     goHomePatient(&patient, patient_state);
 }
 
-// funkcja obsługująca wątek dziecka
+// Funkcja obsługująca wątek dziecka, które jest pod opieką rodzica.
+// Funkcja zarządza ruchem dziecka pomiędzy różnymi strefami (na zewnątrz, rejestracja, lekarz) 
+// IN:
+//   - nieużywane
+// OUT:
+//     VOID
+
 void *handle_child(void *args){
     int tid = syscall(SYS_gettid);
     int age = rand() % 18; 
@@ -528,9 +546,11 @@ void *handle_child(void *args){
     return NULL;   
 }
 
+// funkcja niszcząca procesy zombie
+// IN:
+//   - int signo: Kod sygnału SIGCHLD
 void patient_exit_handler(int signo) {
     int status;
-    pid_t pid;
     while (waitpid(-1, &status, WNOHANG) > 0) {
     }
 }

@@ -33,19 +33,19 @@ void handleSignal2(int sig);
 int main(int argc, char *argv[])
 {
     ConstVars globalConst;
-    int X1 = 30; // limity przyjęć dla lekarzy
-    int X2 = 20;
-    int X3 = 20;
-    int X4 = 20;
-    int X5 = 20;
+    int X1 = 50; // limity przyjęć dla lekarzy
+    int X2 = 5;
+    int X3 = 5;
+    int X4 = 5;
+    int X5 = 5;
 
     int Xvals[] = {X1, X2, X3, X4, X5};
 
     memcpy(globalConst.X, Xvals, sizeof(Xvals));
 
-    globalConst.N = 20; // max pojemność budynku
+    globalConst.N = 30; // max pojemność budynku
     globalConst.Tp = 0; 
-    globalConst.Tk = 180; // godzina zamknięcia
+    globalConst.Tk = 120; // godzina zamknięcia
 
     // obsługa CTRL + C
 
@@ -122,11 +122,25 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// Funkcja obsługująca odliczanie czasu w oddzielnym wątku.
+// Wykorzystuje semafory i zapisuje czas w pamięci dzielonej (atrybut time)
+// IN:
+//   - nieużywane
+// OUT:
+//  VOID
+// 
+//   - Jeśli semafor o `global_semid` nie istnieje to kończy pracę procesu
+//   - Jeśli jest godzina zamknięcia to kończy pracę procesus
+
 void *count_time(void *args){
     int global_semid = globalConst_adres->idsemVars;
     char timeStr[10];
     while (clockIsActive)
     {
+        if(semctl(global_semid, 0, GETPID) == -1){
+            clockIsActive = false;
+            exit(0);
+        }
         semafor_close(global_semid);
         convertTimeToStr(globalVars_adres->time, timeStr);
         if(globalVars_adres->time >= globalConst_adres->Tk && !isCloseTime){
@@ -143,6 +157,14 @@ void *count_time(void *args){
     }
     return NULL;
 }
+
+// Funkcja obsługująca wysyłanie sygnałów 1 i wyświetlanie informacji w oddzielnym wątku.
+// Obsługuje interakcję z użytkownikiem.
+// IN:
+//   - nieużywane
+// OUT:
+//     VOID
+//  - obsługa niepoprawnych danych wejściowych
 
 void *send_signal(void *args){
     int global_semid = globalConst_adres->idsemVars;
@@ -210,6 +232,13 @@ void *send_signal(void *args){
     return NULL;
 }
 
+// Funkcja obsługująca sygnał ewakuacji 
+// Wysyła sygnały 2 do procesów pacjentów, rejestracji, lekarzy
+// IN:
+//   - kod sygnału
+// OUT:
+//     VOID
+
 void handleSignal2(int sig){
     printf("\n Wywołuję sygnał o ewakuacji... \n");
 
@@ -243,6 +272,8 @@ void handleSignal2(int sig){
     system("clear");
     displayMenu();
 }
+
+// Funkcja wyświetlająca menu akcji dyrektora
 
 void displayMenu(){
     printf("Akcje dyrektora:\n");

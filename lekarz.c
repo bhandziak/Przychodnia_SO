@@ -160,6 +160,12 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// Funkcja obsługująca pacjenta, realizująca różne działania w zależności od stanu pacjenta oraz wolnyh terminów.
+// Lekarz podejmuje decyzje: skierowanie do specjalisty, badania ambulatoryjne.
+// IN:
+//   - wskaźnik do Patient
+
+
 void handlePatient(Patient *patient){
     printf("LEKARZ (%s)(wolnych miejsc - %d): Obsługuję pacjenta %d...\n", doctorStr,globalVars_adres->X_free[doctorID] ,patient->pid );
 
@@ -214,6 +220,15 @@ void handlePatient(Patient *patient){
 
 }
 
+// Funkcja obsługująca zakończenie pracy lekarza. Jest wywoływana po otrzymaniu sygnału 1.
+// - Zamyka dostęp do pamięci dzielonej,
+// - Zwalnia zasoby,
+// - Odczytuje pacjentów z kolejki FIFO i czyści dane, i zapisuje dane do raport.txt,
+// IN:
+//   - kod sygnału
+// OUT:
+//     VOID
+
 void endOfWork(int sig){
     Patient patient;
 
@@ -266,12 +281,19 @@ void endOfWork(int sig){
     fclose(file_raport);
 }
 
+// Funkcja zapisująca do pliku raport.txt dane pacjenta
+// IN:
+//   - wskaźnik do Patient
+
 void clearPatient(Patient *patient){
     semafor_close(raport_semid);
     fprintf(file_raport,"LEKARZ: %d skierowanie do %s, wystawił (%d)\n", patient->pid, doctorStr, getpid());
     semafor_open(raport_semid);
     semafor_open(patient->semid);
 }
+
+// Funkcja czyszcząca kolejki fifo
+// Dodatkowo wysyła sygnał 2 do pacjenta
 
 void evacuatePatients(int sig){
     Patient patient;
